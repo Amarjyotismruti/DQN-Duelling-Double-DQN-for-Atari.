@@ -2,7 +2,7 @@
 
 import tensorflow as tf
 import semver
-
+import numpy as np
 
 def huber_loss(y_true, y_pred, max_grad=1.):
     """Calculate the huber loss.
@@ -24,7 +24,20 @@ def huber_loss(y_true, y_pred, max_grad=1.):
     tf.Tensor
       The huber loss.
     """
-    pass
+    assert max_grad>0.0
+    #Find the absolute loss.
+    a = abs(y_true - y_pred)
+    #condition that chooses the loss types.
+    condition = a<max_grad
+    linear_loss=max_grad*(a-0.5*max_grad)
+    squared_loss=0.5*tf.square(a)
+
+    return tf.select(condition,squared_loss,linear_loss)
+
+    
+
+
+
 
 
 def mean_huber_loss(y_true, y_pred, max_grad=1.):
@@ -48,4 +61,5 @@ def mean_huber_loss(y_true, y_pred, max_grad=1.):
     tf.Tensor
       The mean huber loss.
     """
-    pass
+    loss=huber_loss(y_true,y_pred,max_grad=1.)
+    return tf.reduce_mean(loss)
