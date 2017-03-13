@@ -8,6 +8,7 @@ import numpy as np
 import tensorflow as tf
 from keras.layers import (Activation, Convolution2D, Dense, Flatten, Input,
                           Permute)
+from keras.layers.normalization import BatchNormalization
 from keras.models import Model
 from keras.optimizers import Adam
 
@@ -15,6 +16,7 @@ import deeprl_hw2 as tfrl
 from deeprl_hw2.dqn import DQNAgent
 from deeprl_hw2.objectives import mean_huber_loss
 
+from ipdb import set_trace as debug
 
 def create_model(window, input_shape, num_actions,
                  model_name='q_network'):  # noqa: D103
@@ -45,7 +47,20 @@ def create_model(window, input_shape, num_actions,
     keras.models.Model
       The Q-model.
     """
-    pass
+    filters = [64,64,64]
+    state_input = Input(shape=(input_shape[0],input_shape[1],3*window))
+    model = BatchNormalization()(state_input)
+    model = Convolution2D(filters[0], 3, 3, border_mode='same')(model)
+    model = BatchNormalization()(model)
+    model = Convolution2D(filters[1], 3, 3, border_mode='same')(model)
+    model = BatchNormalization()(model)
+    model = Flatten()(model)
+    model = Dense(num_actions)(model)
+
+    model_f = Model(input=state_input, output=model)
+
+    return model_f
+    #pass
 
 
 def get_output_folder(parent_dir, env_name):
@@ -93,13 +108,18 @@ def main():  # noqa: D103
     parser.add_argument('--seed', default=0, type=int, help='Random seed')
 
     args = parser.parse_args()
-    args.input_shape = tuple(args.input_shape)
+    #args.input_shape = tuple(args.input_shape)
 
-    args.output = get_output_folder(args.output, args.env)
+    #args.output = get_output_folder(args.output, args.env)
 
     # here is where you should start up a session,
     # create your DQN agent, create your model, etc.
     # then you can run your fit method.
+
+    model = create_model(4, (100, 100), 1)
+
+    print model.summary()
+    debug()
 
 if __name__ == '__main__':
     main()
