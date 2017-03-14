@@ -3,6 +3,7 @@
 import argparse
 import os
 import random
+import gym
 
 import numpy as np
 import tensorflow as tf
@@ -15,6 +16,10 @@ from keras.optimizers import Adam
 import deeprl_hw2 as tfrl
 from deeprl_hw2.dqn import DQNAgent
 from deeprl_hw2.objectives import mean_huber_loss
+from deeprl_hw2.policy import UniformRandomPolicy, GreedyPolicy, GreedyEpsilonPolicy, LinearDecayGreedyEpsilonPolicy 
+from deeprl_hw2.preprocessors import PreprocessorSequence, AtariPreprocessor, HistoryPreprocessor
+from deeprl_hw2.core import ReplayMemory
+
 
 from ipdb import set_trace as debug
 
@@ -48,7 +53,7 @@ def create_model(window, input_shape, num_actions,
       The Q-model.
     """
     filters = [64,64,64]
-    state_input = Input(shape=(input_shape[0],input_shape[1],3*window))
+    state_input = Input(shape=(input_shape[0],input_shape[1],input_shape[2]*window))
     model = BatchNormalization()(state_input)
     model = Convolution2D(filters[0], 3, 3, border_mode='same')(model)
     model = BatchNormalization()(model)
@@ -102,7 +107,7 @@ def get_output_folder(parent_dir, env_name):
 
 def main():  # noqa: D103
     parser = argparse.ArgumentParser(description='Run DQN on Atari Breakout')
-    parser.add_argument('--env', default='Breakout-v0', help='Atari env name')
+    parser.add_argument('--env', default='SpaceInvaders-v0', help='Atari env name')
     parser.add_argument(
         '-o', '--output', default='atari-v0', help='Directory to save data to')
     parser.add_argument('--seed', default=0, type=int, help='Random seed')
@@ -116,9 +121,43 @@ def main():  # noqa: D103
     # create your DQN agent, create your model, etc.
     # then you can run your fit method.
 
-    model = create_model(4, (100, 100), 1)
+    env = gym.make(args.env)
+    epsilon = 0.3
+    window = 4
+    num_actions = env.action_space.n
+    state_size = env.observation_space.shape
+    new_size = state_size
+    max_size = 10000 #memory size
 
+    u_policy = UniformRandomPolicy( num_actions)
+    ge_policy = GreedyEpsilonPolicy(epsilon)
+    g_policy = GreedyPolicy() 
+    policy = {'u_policy' : u_policy,
+            'ge_policy': ge_policy,
+            'g_policy': g_policy
+            }
+    preprocessor = PreprocessorSequence([AtariPreprocessor(new_size), HistoryPreprocessor(window)])
+    memory = ReplayMemory(max_size, window)
+    gamma = 0.9
+    target_update_freq = 0.01
+    train_freq = 1
+    batch_size = 1
+    num_burn_in = 10*batch_size
+
+    model = create_model(window, state_size, num_actions)
     print model.summary()
+    dqnA = DQNAgent(q_network=model,
+             preprocessor=preprocessor,
+             memory=memory,
+             policy=policy,
+             gamma=gamma,
+             target_update_freq=target_update_freq,
+             num_burn_in=num_burn_in,
+             train_freq=train_freq,
+             batch_size=batch_size)
+    #testing
+    selected_action = dqnA.select_action( np.random.rand(1,210,160,12), train=1, warmup_phase=0)
+
     debug()
 
 if __name__ == '__main__':
