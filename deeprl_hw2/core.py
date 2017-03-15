@@ -1,5 +1,7 @@
 """Core classes."""
 from collections import deque, namedtuple
+import random
+import numpy as np
 
 Experience = namedtuple('Experience', 'state, action, reward, next_state, terminal')
 
@@ -171,12 +173,12 @@ class RingBuffer(object):
     self.size=0
     self.data=[None for i in xrange(max_len)]
 
-  def size(self):
+  def __len__(self):
     return self.size
 
-  def get_data(self,idx):
-    if idx>=self.size or idx<0:
-      raise IndexError()
+  def __getitem__(self,idx):
+    # if idx>=self.size or idx<0:
+    #   raise IndexError()
 
     return self.data[(self.start + idx) % self.max_len]
 
@@ -267,27 +269,62 @@ class ReplayMemory(object):
 
 
 
-  class SequentialMemory(ReplayMemory):
+
+class SequentialMemory(ReplayMemory):
 
     def __init__(self, **kwargs):
       super(SequentialMemory, self).__init__(**kwargs)
 
-      self.actions = RingBuffer(max_size)
-      self.rewards = RingBuffer(max_size)
-      self.terminals = RingBuffer(max_size)
-      self.observations = RingBuffer(max_size)
+      self.actions = RingBuffer(self.max_size)
+      self.rewards = RingBuffer(self.max_size)
+      self.terminals = RingBuffer(self.max_size)
+      self.observations = RingBuffer(self.max_size)
+      self.memsize=0
 
-
-    def append(self,observation,action,reward,terminal)
-      #Add the observations to the replay buffer.
+    def append(self,observation,action,reward,terminal):
+      #Add the observatiotchns to the replay buffer.
       self.actions.append(action)
       self.rewards.append(reward)
       self.observations.append(observation)
       self.terminals.append(terminal)
+      self.memsize=len(self.actions)
 
-    def sample(self, batch_size, indexes):
-      #Extract the training batch from buffer based on the random indices passed.
-      
+   
+    def sample_batch_indexes(self, low, high, size):
+
+      if high - low >= size:
+          r = xrange(low, high)
+          batch_indexes = random.sample(r, size)
+      else:
+          batch_indexes = np.random.randint(low, high - 1, size=size)
+
+      return np.array(batch_indexes)
+
+
+    def sample(self, batch_size, indexes=None):
+
+      if indexes==None:
+        indexes=self.sample_batch_indexes(0, self.memsize-1, batch_size)
+
+      #Compile the experience as a batch
+      batch=[]
+      for idx in indexes:
+      #Check for indexes that can go lower than 0.
+        if idx<self.window_length:
+          idx+=self.window_length
+
+        state=[]
+        for i in xrange(self.window_length):
+          state.insert(0,self.observations[idx-i])
+
+        next_state=[self.observations[idx-i+1] for i in reversed(xrange(self.window_length))]
+        action=self.actions[idx]
+        terminal=self.terminals[idx]
+        reward=self.rewards[idx]
+
+        batch.append(Experience(state, action, reward, next_state, terminal))
+
+      return batch
 
 
     def clear(self):
@@ -304,4 +341,12 @@ class ReplayMemory(object):
       return config
 
 
+if __name__=="__main__":
 
+  memory=SequentialMemory(max_size=4,window_length=2)
+  memory.append(1,2,3,False)
+  memory.append(4,5,6,False)
+  memory.append(7,8,9,False)
+  memory.append(10,11,12,False)
+  print memory.sample(2)
+  
