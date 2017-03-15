@@ -1,0 +1,9 @@
+*.caffemodel
+*.binaryproto
+*.swp
+*.pyc
+*.png
+*.back
+*.pickle
+*.zip
+*.*~

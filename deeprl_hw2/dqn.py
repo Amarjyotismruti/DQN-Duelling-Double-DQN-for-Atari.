@@ -1,3 +1,4 @@
+from ipdb import set_trace as debug
 """Main DQN agent."""
 
 class DQNAgent:
@@ -48,7 +49,13 @@ class DQNAgent:
                  num_burn_in,
                  train_freq,
                  batch_size):
-        pass
+        self.u_policy = policy['u_policy']
+        self.g_policy = policy['g_policy']
+        self.ge_policy = policy['ge_policy']
+        self.model = q_network
+        self.num_burn_in = num_burn_in
+        
+
 
     def compile(self, optimizer, loss_func):
         """Setup all of the TF graph variables/ops.
@@ -78,9 +85,12 @@ class DQNAgent:
         ------
         Q-values for the state(s)
         """
-        pass
+        #pass
+        #TODO process state
+        q_vals = self.model.predict_on_batch(state)
+        return q_vals
 
-    def select_action(self, state, **kwargs):
+    def select_action(self, state, train, warmup_phase, **kwargs):
         """Select the action based on the current state.
 
         You will probably want to vary your behavior here based on
@@ -101,7 +111,29 @@ class DQNAgent:
         --------
         selected action
         """
-        pass
+        #
+        #states wont be in batch 
+        #train + warmup_phase
+        #
+        #assuming single state, not batch
+        q_vals = []
+        if train:
+            if warmup_phase:
+                #uniform ranom
+                selected_action = self.u_policy.select_action()
+            else:
+                #e greedy
+                q_vals = self.calc_q_values(state)[0]
+                selected_action = self.ge_policy.select_action(q_vals)
+        else:
+            #greedy
+            #TODO need low e greedy?
+            q_vals = self.calc_q_values(state)[0]
+            selected_action = self.g_policy.select_action(q_vals)
+
+        #pass
+        print(q_vals)
+        return selected_action
 
     def update_policy(self):
         """Update your policy.
