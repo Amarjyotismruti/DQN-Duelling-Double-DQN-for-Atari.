@@ -1,4 +1,6 @@
 from ipdb import set_trace as debug
+from keras.models import model_from_config
+#from deeprl_hw2.objectives import 
 """Main DQN agent."""
 
 class DQNAgent:
@@ -54,10 +56,14 @@ class DQNAgent:
         self.ge_policy = policy['ge_policy']
         self.model = q_network
         self.num_burn_in = num_burn_in
+        self.memory = memory
+        self.target_update_freq = target_update_freq
+        self.train_fre = train_freq 
+        self.batch_size = batch_size
         
 
 
-    def compile(self, optimizer, loss_func):
+    def compile(self, optimizer, loss_func, metrics=[]):
         """Setup all of the TF graph variables/ops.
 
         This is inspired by the compile method on the
@@ -74,7 +80,40 @@ class DQNAgent:
         keras.optimizers.Optimizer class. Specifically the Adam
         optimizer.
         """
-        pass
+        self.optimizer = optimizer 
+        self.loss_func = loss_func 
+        
+        # create target network with random optimizer
+        config = {
+            'class_name': self.model.__class__.__name__,
+            'config': self.model.get_config(),
+        }
+        self.target = model_from_config(config, custom_objects={})#custom_objects)
+        self.target.set_weights(self.model.get_weights())
+        self.target.compile(optimizer='sgd', loss='mse')
+        self.model.compile(optimizer='sgd', loss='mse')
+        
+        #TODO: target model update sperately while updating network
+        
+        def masked_error(args):
+            y_true, y_pred, mask = args
+            loss = loss_func(y_true, y_pred, self.delta_clip)
+            loss *= mask  # apply element-wise mask
+            return K.sum(loss, axis=-1)
+
+        q_pred = self.model.output
+        q_true = Input(name='q_true', shape=(,self.model.output_shape[1]))
+        mask = Input(name='mask', shape=(,self.model.output_shape[1]))
+        loss_out = Lambda(masked_error, output_shape=(1,), name='loss')([q_pred, q_true, mask])
+        
+        trainable_model = Model(input=[self.model.input] + [y_true, mask], output=[loss_out, y_pred])
+        #TODO compile trainable model
+
+
+
+
+        #pass
+
 
     def calc_q_values(self, state):
         """Given a state (or batch of states) calculate the Q-values.

@@ -267,7 +267,7 @@ class ReplayMemory(object):
 
 
 
-  class SequentialMemory(ReplayMemory):
+class SequentialMemory(ReplayMemory):
 
     def __init__(self, **kwargs):
       super(SequentialMemory, self).__init__(**kwargs)
@@ -278,7 +278,7 @@ class ReplayMemory(object):
       self.observations = RingBuffer(max_size)
 
 
-    def append(self,observation,action,reward,terminal)
+    def append(self,observation,action,reward,terminal):
       #Add the observations to the replay buffer.
       self.actions.append(action)
       self.rewards.append(reward)
@@ -287,7 +287,7 @@ class ReplayMemory(object):
 
     def sample(self, batch_size, indexes):
       #Extract the training batch from buffer based on the random indices passed.
-      
+      pass 
 
 
     def clear(self):
