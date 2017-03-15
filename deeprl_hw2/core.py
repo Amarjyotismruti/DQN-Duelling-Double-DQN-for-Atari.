@@ -1,5 +1,7 @@
 """Core classes."""
+from collections import deque, namedtuple
 
+Experience = namedtuple('Experience', 'state, action, reward, next_state, terminal')
 
 
 class Sample:
@@ -32,7 +34,11 @@ class Sample:
     is_terminal: boolean
       True if this action finished the episode. False otherwise.
     """
-    pass
+    def __init__(self,state,action,next_state,reward,terminal=False):
+
+        self.sample=(state,action,next_state,reward,terminal)
+
+
 
 
 class Preprocessor:
@@ -155,7 +161,42 @@ class Preprocessor:
         pass
 
 
-class ReplayMemory:
+class RingBuffer(object):
+  """Data structure to store the interaction experience
+  All individual states(images) ,actions and rewards will be stored in this container"""
+
+  def __init__(self,max_len):
+    self.max_len=max_len
+    self.start=0
+    self.size=0
+    self.data=[None for i in xrange(max_len)]
+
+  def size(self):
+    return self.size
+
+  def get_data(self,idx):
+    if idx>=self.size or idx<0:
+      raise IndexError()
+
+    return self.data[(self.start + idx) % self.max_len]
+
+  def append(self,value):
+
+    if self.size<self.max_len:
+      self.size+=1
+
+    elif self.size==self.max_len:
+      self.start=(self.start + 1) % self.max_len
+
+
+    self.data[(self.size + self.start -1) % self.max_len ] = value
+
+
+
+
+
+
+class ReplayMemory(object):
     """Interface for replay memories.
 
     We have found this to be a useful interface for the replay
@@ -197,7 +238,7 @@ class ReplayMemory:
     def __init__(self, max_size, window_length):
         """Setup memory.
 
-        You should specify the maximum size o the memory. Once the
+        You should specify the maximum size of the memory. Once the
         memory fills up oldest values should be removed. You can try
         the collections.deque class as the underlying storage, but
         your sample method will be very slow.
@@ -205,16 +246,62 @@ class ReplayMemory:
         We recommend using a list as a ring buffer. Just track the
         index where the next sample should be inserted in the list.
         """
-        pass
+        self.window_length=window_length
+        self.max_size=max_size
+        # self.current_observation=deque(maxlen=window_length)
+        # self.current_action=deque(maxlen=window_length)
 
-    def append(self, state, action, reward):
+
+    def append(self, state, action, reward, terminal):
         raise NotImplementedError('This method should be overridden')
 
-    def end_episode(self, final_state, is_terminal):
-        raise NotImplementedError('This method should be overridden')
+    # def end_episode(self, final_state, is_terminal):
+    #     raise NotImplementedError('This method should be overridden')
 
     def sample(self, batch_size, indexes=None):
         raise NotImplementedError('This method should be overridden')
 
     def clear(self):
         raise NotImplementedError('This method should be overridden')
+
+
+
+
+  class SequentialMemory(ReplayMemory):
+
+    def __init__(self, **kwargs):
+      super(SequentialMemory, self).__init__(**kwargs)
+
+      self.actions = RingBuffer(max_size)
+      self.rewards = RingBuffer(max_size)
+      self.terminals = RingBuffer(max_size)
+      self.observations = RingBuffer(max_size)
+
+
+    def append(self,observation,action,reward,terminal)
+      #Add the observations to the replay buffer.
+      self.actions.append(action)
+      self.rewards.append(reward)
+      self.observations.append(observation)
+      self.terminals.append(terminal)
+
+    def sample(self, batch_size, indexes):
+      #Extract the training batch from buffer based on the random indices passed.
+      
+
+
+    def clear(self):
+      #Reinitialize the buffer.
+      self.actions = RingBuffer(max_size)
+      self.rewards = RingBuffer(max_size)
+      self.terminals = RingBuffer(max_size)
+      self.observations = RingBuffer(max_size)
+
+
+    def get_config(self):
+
+      config={'window_length':self.window_length,'max_size':max_size}
+      return config
+
+
+
