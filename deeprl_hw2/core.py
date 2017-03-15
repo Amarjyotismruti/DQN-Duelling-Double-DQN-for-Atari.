@@ -281,8 +281,9 @@ class SequentialMemory(ReplayMemory):
       self.observations = RingBuffer(self.max_size)
       self.memsize=0
 
+
     def append(self,observation,action,reward,terminal):
-      #Add the observatiotchns to the replay buffer.
+      #Add the observations to the replay buffer.
       self.actions.append(action)
       self.rewards.append(reward)
       self.observations.append(observation)
@@ -323,6 +324,7 @@ class SequentialMemory(ReplayMemory):
         reward=self.rewards[idx]
 
         batch.append(Experience(state, action, reward, next_state, terminal))
+
 
       return batch
 
