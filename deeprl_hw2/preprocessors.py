@@ -2,9 +2,7 @@
 
 import numpy as np
 from PIL import Image
-
-from deeprl_hw2 import utils
-from deeprl_hw2.core import Preprocessor
+from core import Preprocessor
 
 
 class HistoryPreprocessor(Preprocessor):
@@ -21,9 +19,10 @@ class HistoryPreprocessor(Preprocessor):
     history_length: int
       Number of previous states to prepend to state being processed.
 
+
     """
 
-    def __init__(self, history_length=1):
+    def __init__(self, memory, history_length=4):
         pass
 
     def process_state_for_network(self, state):
@@ -75,12 +74,14 @@ class AtariPreprocessor(Preprocessor):
     new_size: 2 element tuple
       The size that each image in the state should be scaled to. e.g
       (84, 84) will make each image in the output have shape (84, 84).
+    memory: Sequencialmemory object to access the replay memory.
     """
 
-    def __init__(self, new_size):
-        pass
 
-    def process_state_for_memory(self, state):
+    def __init__(self, new_size=(84,84)):
+        self.new_size=new_size
+
+    def process_state_for_memory(self, obs, prev_obs):
         """Scale, convert to greyscale and store as uint8.
 
         We don't want to save floating point numbers in the replay
@@ -90,7 +91,13 @@ class AtariPreprocessor(Preprocessor):
         We recommend using the Python Image Library (PIL) to do the
         image conversions.
         """
-        pass
+        obs=np.maximum(obs,prev_obs)
+        obs=Image.fromarray(np.uint8(obs))
+        obs=im.convert('L')
+        obs=im.resize((84,84))
+
+        return obs
+
 
     def process_state_for_network(self, state):
         """Scale, convert to greyscale and store as float32.
@@ -98,34 +105,43 @@ class AtariPreprocessor(Preprocessor):
         Basically same as process state for memory, but this time
         outputs float32 images.
         """
-        pass
+        state=np.float32(state)
 
-    def process_batch(self, samples):
+        return state
+
+
+    def process_batch(self, batch):
         """The batches from replay memory will be uint8, convert to float32.
 
         Same as process_state_for_network but works on a batch of
         samples from the replay memory. Meaning you need to convert
         both state and next state values.
         """
-        pass
+        batch=np.float32(self.memory.sample())
+
+        return batch
+
 
     def process_reward(self, reward):
         """Clip reward between -1 and 1."""
-        pass
+
+        return np.clip(reward,-1,1)
 
 
-class PreprocessorSequence(Preprocessor):
-    """You may find it useful to stack multiple prepcrocesosrs (such as the History and the AtariPreprocessor).
+#**HistoryPreprocessor isn't necessary as batches can be samples using memory.sample() method from core.py.**#
 
-    You can easily do this by just having a class that calls each preprocessor in succession.
+# class PreprocessorSequence(Preprocessor):
+#     """You may find it useful to stack multiple prepcrocesosrs (such as the History and the AtariPreprocessor).
 
-    For example, if you call the process_state_for_network and you
-    have a sequence of AtariPreproccessor followed by
-    HistoryPreprocessor. This this class could implement a
-    process_state_for_network that does something like the following:
+#     You can easily do this by just having a class that calls each preprocessor in succession.
 
-    state = atari.process_state_for_network(state)
-    return history.process_state_for_network(state)
-    """
-    def __init__(self, preprocessors):
-        pass
+#     For example, if you call the process_state_for_network and you
+#     have a sequence of AtariPreproccessor followed by
+#     HistoryPreprocessor. This this class could implement a
+#     process_state_for_network that does something like the following:
+
+#     state = atari.process_state_for_network(state)
+#     return history.process_state_for_network(state)
+#     """
+#     def __init__(self, preprocessors):
+#         pass
