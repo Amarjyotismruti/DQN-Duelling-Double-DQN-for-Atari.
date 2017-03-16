@@ -2,6 +2,7 @@
 from collections import deque, namedtuple
 import random
 import numpy as np
+from pdb import set_trace as debug
 
 Experience = namedtuple('Experience', 'state, action, reward, next_state, terminal')
 
@@ -250,12 +251,12 @@ class ReplayMemory(object):
         """
         self.window_length=window_length
         self.max_size=max_size
-        # self.current_observation=deque(maxlen=window_length)
-        # self.current_action=deque(maxlen=window_length)
+        #Queue to store the on-line observation to give as input to the network.
+        self.current_observation=deque(maxlen=window_length)
 
 
-    def append(self, state, action, reward, terminal):
-        raise NotImplementedError('This method should be overridden')
+    def append(self, observation, action, reward, terminal):
+        self.current_observation.append(observation)
 
     # def end_episode(self, final_state, is_terminal):
     #     raise NotImplementedError('This method should be overridden')
@@ -282,6 +283,10 @@ class SequentialMemory(ReplayMemory):
       self.memsize=0
 
 
+    def get_recent_observation(self):
+
+      return self.current_observation
+
     def append(self,observation,action,reward,terminal):
       #Add the observations to the replay buffer.
       self.actions.append(action)
@@ -303,7 +308,8 @@ class SequentialMemory(ReplayMemory):
 
 
     def sample(self, batch_size, indexes=None):
-
+      """Sample batches from the replay memory for training"""
+      
       if indexes==None:
         indexes=self.sample_batch_indexes(0, self.memsize-1, batch_size)
 
