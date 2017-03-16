@@ -15,7 +15,7 @@ from keras.optimizers import Adam
 
 import deeprl_hw2 as tfrl
 from deeprl_hw2.dqn import DQNAgent
-from deeprl_hw2.objectives import mean_huber_loss
+from deeprl_hw2.objectives import mean_huber_loss, huber_loss
 from deeprl_hw2.policy import UniformRandomPolicy, GreedyPolicy, GreedyEpsilonPolicy, LinearDecayGreedyEpsilonPolicy 
 from deeprl_hw2.preprocessors import PreprocessorSequence, AtariPreprocessor, HistoryPreprocessor
 from deeprl_hw2.core import ReplayMemory
@@ -156,7 +156,9 @@ def main():  # noqa: D103
              train_freq=train_freq,
              batch_size=batch_size)
     #testing
-    selected_action = dqnA.select_action( np.random.rand(1,210,160,12), train=1, warmup_phase=0)
+    #selected_action = dqnA.select_action( np.random.rand(1,210,160,12), train=1, warmup_phase=0)
+    h_loss = huber_loss
+    dqnA.compile('sgd', h_loss)
 
     debug()
 

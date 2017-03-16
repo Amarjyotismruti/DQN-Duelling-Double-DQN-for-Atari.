@@ -1,8 +1,17 @@
 from ipdb import set_trace as debug
 from keras.models import model_from_config
 #from deeprl_hw2.objectives import 
-"""Main DQN agent."""
+import keras.backend as K
+from keras.layers import Input, Lambda
+from keras.models import Model
 
+def mean_q(y_true, y_pred):
+    print('in metric')
+    print('y_true', y_true)
+    print('y_pred', y_pred)
+    return K.mean(K.max(y_pred, axis=-1))
+
+"""Main DQN agent."""
 class DQNAgent:
     """Class implementing DQN.
 
@@ -82,6 +91,7 @@ class DQNAgent:
         """
         self.optimizer = optimizer 
         self.loss_func = loss_func 
+        metrics += [mean_q]
         
         # create target network with random optimizer
         config = {
@@ -93,21 +103,39 @@ class DQNAgent:
         self.target.compile(optimizer='sgd', loss='mse')
         self.model.compile(optimizer='sgd', loss='mse')
         
-        #TODO: target model update sperately while updating network
-        
+        #TODO: target model weights update sperately while updating network
+        self.max_grad = 1.0 
         def masked_error(args):
             y_true, y_pred, mask = args
-            loss = loss_func(y_true, y_pred, self.delta_clip)
+            loss = loss_func(y_true, y_pred, self.max_grad)
             loss *= mask  # apply element-wise mask
             return K.sum(loss, axis=-1)
 
         q_pred = self.model.output
-        q_true = Input(name='q_true', shape=(,self.model.output_shape[1]))
-        mask = Input(name='mask', shape=(,self.model.output_shape[1]))
+        q_true = Input(name='q_true', shape=(self.model.output_shape[1],))
+        mask = Input(name='mask', shape=(self.model.output_shape[1],))
+        # since we using mask we need seperate layer
         loss_out = Lambda(masked_error, output_shape=(1,), name='loss')([q_pred, q_true, mask])
         
-        trainable_model = Model(input=[self.model.input] + [y_true, mask], output=[loss_out, y_pred])
-        #TODO compile trainable model
+        trainable_model = Model(input=[self.model.input] + [q_true, mask], output=[loss_out, q_pred])
+        prop_metrics = {trainable_model.output_names[1]: metrics}
+
+        # TODO not sure why this is needed
+        losses = [
+                lambda y_true, y_pred: y_pred,  # loss is computed in Lambda layer
+                lambda y_true, y_pred: K.zeros_like(y_pred),  # we only include this for the metrics
+            ]
+        
+        trainable_model.compile(optimizer=optimizer, loss=losses, metrics=prop_metrics)
+        self.trainable_model = trainable_model
+
+        #def get_activations(model, layer, X_batch):
+        #    get_activations = K.function([model.layers[0].input, K.learning_phase()], [model.layers[layer].output,])
+        #    activations = get_activations([X_batch,0])
+        #    return activations
+
+
+        debug()
 
 
 
