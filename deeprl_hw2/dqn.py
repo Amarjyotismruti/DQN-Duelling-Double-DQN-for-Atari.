@@ -5,6 +5,7 @@ import keras.backend as K
 from keras.layers import Input, Lambda
 from keras.models import Model
 from copy import deepcopy
+import numpy as np
 
 def mean_q(y_true, y_pred):
     print('in metric')
@@ -245,12 +246,14 @@ class DQNAgent:
         episode=0
         iterations=0
         observation=None
+        prev_observation=0
         episode_reward=None
         episode_iter=None
+        self.step=0
 
 
 
-        while iterations<num_iterations:
+        while self.step<num_iterations:
 
           if observation is None:
           #Initiate training.(warmup phase to fill up the replay memory)
@@ -259,7 +262,8 @@ class DQNAgent:
               action=self.select_action(train=True, warmup_phase=True)
               observation, reward, terminal, info = env.step(action)
               observation = deepcopy(observation)
-              observation=self.preprocessor.process_state_for_memory(observation)
+              observation=self.preprocessor.process_state_for_memory(observation,prev_observation)
+              prev_observation=deepcopy(observation)
               reward=self.preprocessor.process_reward(reward)
               self.memory.append(observation,action,reward,terminal)
               if terminal:
@@ -267,8 +271,74 @@ class DQNAgent:
                 break
 
 
+          action=self.forward(observation)
+          observation, reward, terminal, info = env.step(action)
+          observation = deepcopy(observation)
+          observation=self.preprocessor.process_state_for_memory(observation,prev_observation)
+          reward=self.preprocessor.process_reward(reward)
+          self.recent_observation=observation
+          self.recent_action=action
+          #Do backward pass parameter update.
 
-    
+
+
+
+
+
+
+
+
+    def forward(self, observation):
+
+      state=self.memory.get_recent_observation(observation)
+      state=self.preprocessor.process_state_for_network(state)
+      action=self.select_action(state=state, train=True, warmup_phase=False)
+      return action
+
+
+    def backward(self, reward, terminal):
+
+      self.memory.append(self.recent_observation, self.recent_action, reward, terminal)
+
+      if self.step%self.train_freq==0:
+
+        experiences = self.memory.sample(self.batch_size)
+
+        #EXtract the parameters out of experience data structure.
+        state_batch = []
+        reward_batch = []
+        action_batch = []
+        terminal_batch = []
+        next_state_batch = []
+        for exp in experiences:
+            state_batch.append(exp.state)
+            next_state_batch.append(exp.next_state)
+            reward_batch.append(exp.reward)
+            action_batch.append(exp.action)
+            terminal_batch.append(0. if exp.terminal else 1.)
+
+        state_batch = self.preprocessor.process_batch(state_batch)
+        next_state_batch = self.preprocessor.process_batch(next_state_batch)
+        terminal_batch=np.array(terminal_batch)
+        reward_batch=np.array(reward_batch)
+
+        #compute target q_values
+        target_values = self.target.predict_on_batch(next_state_batch)    
+        q_batch = np.max(target_values, axis=1).flatten()
+        
+
+
+
+
+
+
+                               
+
+
+
+
+
+
 
 
 
