@@ -197,8 +197,6 @@ class RingBuffer(object):
 
 
 
-
-
 class ReplayMemory(object):
     """Interface for replay memories.
 
@@ -238,7 +236,7 @@ class ReplayMemory(object):
     clear()
       Reset the memory. Deletes all references to the samples.
     """
-    def __init__(self, max_size, window_length):
+    def __init__(self, max_size=10000, window_length=4):
         """Setup memory.
 
         You should specify the maximum size of the memory. Once the
@@ -256,8 +254,7 @@ class ReplayMemory(object):
 
 
     def append(self, observation, action, reward, terminal):
-        self.current_observation.append(observation)
-
+        raise NotImplementedError('This method should be overridden')
     # def end_episode(self, final_state, is_terminal):
     #     raise NotImplementedError('This method should be overridden')
 
@@ -283,12 +280,17 @@ class SequentialMemory(ReplayMemory):
       self.memsize=0
 
 
-    def get_recent_observation(self):
+    def get_recent_observation(self,recent_observation):
 
-      return self.current_observation
+      obs=[recent_observation]
+      for idx in xrange(1, self.window_length):
+        obs.insert(0,self.current_observation[self.window_length-idx])
+      return obs
 
     def append(self,observation,action,reward,terminal):
       #Add the observations to the replay buffer.
+      self.current_observation.append(observation)
+
       self.actions.append(action)
       self.rewards.append(reward)
       self.observations.append(observation)
@@ -351,10 +353,11 @@ class SequentialMemory(ReplayMemory):
 
 if __name__=="__main__":
 
-  memory=SequentialMemory(max_size=4,window_length=2)
+  memory=SequentialMemory(max_size=4,window_length=3)
   memory.append(1,2,3,False)
   memory.append(4,5,6,False)
   memory.append(7,8,9,False)
   memory.append(10,11,12,False)
-  print memory.sample(2)
+  print memory.get_recent_observation(11)
+
   

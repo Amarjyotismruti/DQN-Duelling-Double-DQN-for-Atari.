@@ -1,9 +1,10 @@
-from ipdb import set_trace as debug
+from pdb import set_trace as debug
 from keras.models import model_from_config
-#from deeprl_hw2.objectives import 
+from deeprl_hw2.objectives import huber_loss
 import keras.backend as K
 from keras.layers import Input, Lambda
 from keras.models import Model
+from copy import deepcopy
 
 def mean_q(y_true, y_pred):
     print('in metric')
@@ -67,8 +68,9 @@ class DQNAgent:
         self.num_burn_in = num_burn_in
         self.memory = memory
         self.target_update_freq = target_update_freq
-        self.train_fre = train_freq 
+        self.train_freq = train_freq 
         self.batch_size = batch_size
+        self.preprocessor=preprocessor
         
 
 
@@ -137,10 +139,6 @@ class DQNAgent:
 
         debug()
 
-
-
-
-        #pass
 
 
     def calc_q_values(self, state):
@@ -244,7 +242,37 @@ class DQNAgent:
           How long a single episode should last before the agent
           resets. Can help exploration.
         """
-        pass
+        episode=0
+        iterations=0
+        observation=None
+        episode_reward=None
+        episode_iter=None
+
+
+
+        while iterations<num_iterations:
+
+          if observation is None:
+          #Initiate training.(warmup phase to fill up the replay memory)
+            for _ in xrange(num_burn_in):
+
+              action=self.select_action(train=True, warmup_phase=True)
+              observation, reward, terminal, info = env.step(action)
+              observation = deepcopy(observation)
+              observation=self.preprocessor.process_state_for_memory(observation)
+              reward=self.preprocessor.process_reward(reward)
+              self.memory.append(observation,action,reward,terminal)
+              if terminal:
+                observation=env.reset()
+                break
+
+
+
+    
+
+
+
+
 
     def evaluate(self, env, num_episodes, max_episode_length=None):
         """Test your agent with a provided environment.
@@ -260,3 +288,13 @@ class DQNAgent:
         visually inspect your policy.
         """
         pass
+
+
+    def save_weights(self, filepath,overwrite=True):
+      """Save network parameters periodically"""
+      self.model.save_weights(filepath, overwrite=overwrite)
+
+
+    def load_weights(self, filepath):
+        self.model.load_weights(filepath)
+        self.update_target_model_hard()

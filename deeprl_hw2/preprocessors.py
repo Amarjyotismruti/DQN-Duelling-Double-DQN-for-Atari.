@@ -128,7 +128,7 @@ class AtariPreprocessor(Preprocessor):
         return np.clip(reward,-1,1)
 
 
-#**HistoryPreprocessor isn't necessary as batches can be samples using memory.sample() method from core.py.**#
+#**HistoryPreprocessor isn't necessary as batches can be sampled using memory.sample() method from core.py.**#
 
 # class PreprocessorSequence(Preprocessor):
 #     """You may find it useful to stack multiple prepcrocesosrs (such as the History and the AtariPreprocessor).
