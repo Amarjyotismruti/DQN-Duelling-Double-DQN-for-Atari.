@@ -328,8 +328,10 @@ class SequentialMemory(ReplayMemory):
 
         next_state=[self.observations[idx-i+1] for i in reversed(xrange(self.window_length))]
         action=self.actions[idx]
-        terminal=self.terminals[idx]
-        reward=self.rewards[idx]
+        # TODO what happens if the any state or next state is terminal inside a batch? I think we should sample again
+        # TODO is the +1 valid? for reward and terminal state
+        terminal=self.terminals[idx+1]
+        reward=self.rewards[idx+1]
 
         batch.append(Experience(state, action, reward, next_state, terminal))
 

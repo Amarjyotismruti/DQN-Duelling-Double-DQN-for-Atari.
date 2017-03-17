@@ -1,4 +1,4 @@
-from pdb import set_trace as debug
+from ipdb import set_trace as debug
 from keras.models import model_from_config
 from deeprl_hw2.objectives import huber_loss
 import keras.backend as K
@@ -138,7 +138,6 @@ class DQNAgent:
         #    return activations
 
 
-        debug()
 
 
 
@@ -216,6 +215,8 @@ class DQNAgent:
         You might want to return the loss and other metrics as an
         output. They can help you monitor how training is going.
         """
+        # TODO backprop
+        # TODO update target net weights
         pass
 
     def fit(self, env, num_iterations, max_episode_length=None):
@@ -254,31 +255,50 @@ class DQNAgent:
 
 
         while self.step<num_iterations:
+          #TODO respect max_episode length
 
           if observation is None:
           #Initiate training.(warmup phase to fill up the replay memory)
-            for _ in xrange(num_burn_in):
+            observation = deepcopy(env.reset())
+            #observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
+            #observation = self.preprocessor.process_state_for_network(observation)
+            for _ in xrange(self.num_burn_in):
 
-              action=self.select_action(train=True, warmup_phase=True)
-              observation, reward, terminal, info = env.step(action)
-              observation = deepcopy(observation)
-              observation=self.preprocessor.process_state_for_memory(observation,prev_observation)
-              prev_observation=deepcopy(observation)
-              reward=self.preprocessor.process_reward(reward)
+              action = self.select_action(observation, train=True, warmup_phase=True)
+              observation1, reward, terminal, info = env.step(action)
+              observation = deepcopy(observation1)
+              observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
+              prev_observation = deepcopy(observation1)
+              reward = self.preprocessor.process_reward(reward)
               self.memory.append(observation,action,reward,terminal)
               if terminal:
-                observation=env.reset()
-                break
+                prev_observation = 0
+                observation=deepcopy(env.reset())
+                observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
+                # TODO doesnt make sense to break here
+                #break
 
 
           action=self.forward(observation)
-          observation, reward, terminal, info = env.step(action)
-          observation = deepcopy(observation)
+          observation1, reward, terminal, info = env.step(action)
+          env.render()
+          observation = deepcopy(observation1)
           observation=self.preprocessor.process_state_for_memory(observation,prev_observation)
+          prev_observation=deepcopy(observation1)
           reward=self.preprocessor.process_reward(reward)
-          self.recent_observation=observation
-          self.recent_action=action
+          # TODO Sai: why appending to memory in backward funciton? this is more efficient no?
+          #self.recent_observation=observation
+          #self.recent_action=action
+          self.memory.append(observation,action,reward,terminal)
+
           #Do backward pass parameter update.
+          debug()
+          self.backward()
+          if terminal:
+            # TODO do a forward and back here?
+            observation=env.reset()
+            prev_observation = 0
+            break
 
 
 
@@ -296,15 +316,14 @@ class DQNAgent:
       return action
 
 
-    def backward(self, reward, terminal):
-
-      self.memory.append(self.recent_observation, self.recent_action, reward, terminal)
+    def backward(self):#, reward, terminal):
+      #self.memory.append(self.recent_observation, self.recent_action, reward, terminal)
 
       if self.step%self.train_freq==0:
 
-        experiences = self.memory.sample(self.batch_size)
+        experiences = self.memory.sample(2)#self.batch_size)
 
-        #EXtract the parameters out of experience data structure.
+        #Extract the parameters out of experience data structure.
         state_batch = []
         reward_batch = []
         action_batch = []
@@ -323,8 +342,10 @@ class DQNAgent:
         reward_batch=np.array(reward_batch)
 
         #compute target q_values
+        # TODO add rewards
         target_values = self.target.predict_on_batch(next_state_batch)    
         q_batch = np.max(target_values, axis=1).flatten()
+        # TODO call update policy
         
 
 

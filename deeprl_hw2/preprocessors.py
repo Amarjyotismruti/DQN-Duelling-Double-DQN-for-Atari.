@@ -1,5 +1,6 @@
 """Suggested Preprocessors."""
 
+from ipdb import set_trace as debug
 import numpy as np
 from PIL import Image
 from core import Preprocessor
@@ -92,20 +93,25 @@ class AtariPreprocessor(Preprocessor):
         image conversions.
         """
         obs=np.maximum(obs,prev_obs)
-        obs=Image.fromarray(np.uint8(obs))
+        im=Image.fromarray(np.uint8(obs))
         obs=im.convert('L')
         obs=im.resize((84,84))
 
         return obs
 
 
-    def process_state_for_network(self, state):
+    def process_state_for_network(self, state_l):
         """Scale, convert to greyscale and store as float32.
 
         Basically same as process state for memory, but this time
         outputs float32 images.
         """
-        state=np.float32(state)
+        # batchsize = 1 here
+
+        s1,s2,s3 = np.float32(state_l[0]).shape
+        state = np.empty((1, s1, s2, s3*len(state_l)))
+        for i in range(len(state_l)):
+            state[0,:s1,:s2,i*3:(i+1)*s3] = np.float32(state_l[i])
 
         return state
 
@@ -117,9 +123,15 @@ class AtariPreprocessor(Preprocessor):
         samples from the replay memory. Meaning you need to convert
         both state and next state values.
         """
-        batch=np.float32(self.memory.sample())
+        batch_size = len(batch)
+        s1,s2,s3 = np.float32(batch[0][0]).shape
+        batch_state = np.empty((batch_size, s1, s2, s3*len(batch[0])))
 
-        return batch
+        for i in range(len(batch)):
+          state = self.process_state_for_network(batch[i])
+          batch_state[i,:s1,:s2,:s3*len(batch[0])] = state
+
+        return batch_state
 
 
     def process_reward(self, reward):

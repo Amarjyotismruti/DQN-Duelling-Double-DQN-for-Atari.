@@ -17,8 +17,8 @@ import deeprl_hw2 as tfrl
 from deeprl_hw2.dqn import DQNAgent
 from deeprl_hw2.objectives import mean_huber_loss, huber_loss
 from deeprl_hw2.policy import UniformRandomPolicy, GreedyPolicy, GreedyEpsilonPolicy, LinearDecayGreedyEpsilonPolicy 
-from deeprl_hw2.preprocessors import PreprocessorSequence, AtariPreprocessor, HistoryPreprocessor
-from deeprl_hw2.core import ReplayMemory
+from deeprl_hw2.preprocessors import AtariPreprocessor, HistoryPreprocessor
+from deeprl_hw2.core import *#ReplayMemory
 
 
 from ipdb import set_trace as debug
@@ -125,7 +125,7 @@ def main():  # noqa: D103
     epsilon = 0.3
     window = 4
     num_actions = env.action_space.n
-    state_size = env.observation_space.shape
+    state_size = (84,84,3)#env.observation_space.shape
     new_size = state_size
     max_size = 10000 #memory size
 
@@ -136,8 +136,9 @@ def main():  # noqa: D103
             'ge_policy': ge_policy,
             'g_policy': g_policy
             }
-    preprocessor = PreprocessorSequence([AtariPreprocessor(new_size), HistoryPreprocessor(window)])
-    memory = ReplayMemory(max_size, window)
+    #preprocessor = PreprocessorSequence([AtariPreprocessor(new_size), HistoryPreprocessor(window)])
+    preprocessor = AtariPreprocessor(new_size)
+    memory = SequentialMemory(max_size=max_size, window_length=window)
     gamma = 0.9
     target_update_freq = 0.01
     train_freq = 1
@@ -159,6 +160,7 @@ def main():  # noqa: D103
     #selected_action = dqnA.select_action( np.random.rand(1,210,160,12), train=1, warmup_phase=0)
     h_loss = huber_loss
     dqnA.compile('sgd', h_loss)
+    dqnA.fit(env, 10000, 100)
 
     debug()
 
