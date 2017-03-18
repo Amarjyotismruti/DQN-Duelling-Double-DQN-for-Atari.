@@ -1,6 +1,6 @@
 """Suggested Preprocessors."""
 
-from ipdb import set_trace as debug
+from pdb import set_trace as debug
 import numpy as np
 from PIL import Image
 from core import Preprocessor
@@ -95,8 +95,8 @@ class AtariPreprocessor(Preprocessor):
         obs=np.maximum(obs,prev_obs)
         im=Image.fromarray(np.uint8(obs))
         obs=im.convert('L')
-        obs=im.resize((84,84))
-
+        obs=obs.resize((84,84))
+        obs=np.array(obs)
         return obs
 
 
@@ -108,10 +108,13 @@ class AtariPreprocessor(Preprocessor):
         """
         # batchsize = 1 here
 
-        s1,s2,s3 = np.float32(state_l[0]).shape
-        state = np.empty((1, s1, s2, s3*len(state_l)))
-        for i in range(len(state_l)):
-            state[0,:s1,:s2,i*3:(i+1)*s3] = np.float32(state_l[i])
+        # s1,s2,s3 = np.float32(state_l[0]).shape
+        # state = np.empty((1, s1, s2, s3*len(state_l)))
+        # for i in range(len(state_l)):
+        #     state[0,:s1,:s2,i*3:(i+1)*s3] = np.float32(state_l[i])
+        state_l=np.expand_dims(state_l,axis=0)
+        state_l=np.transpose(state_l,(0,2,3,1))
+        state=np.float32(state_l)
 
         return state
 
@@ -123,13 +126,15 @@ class AtariPreprocessor(Preprocessor):
         samples from the replay memory. Meaning you need to convert
         both state and next state values.
         """
-        batch_size = len(batch)
-        s1,s2,s3 = np.float32(batch[0][0]).shape
-        batch_state = np.empty((batch_size, s1, s2, s3*len(batch[0])))
+        # batch_size = len(batch)
+        # s1,s2,s3 = np.float32(batch[0][0]).shape
+        # batch_state = np.empty((batch_size, s1, s2, s3*len(batch[0])))
 
-        for i in range(len(batch)):
-          state = self.process_state_for_network(batch[i])
-          batch_state[i,:s1,:s2,:s3*len(batch[0])] = state
+        # for i in range(len(batch)):
+        #   state = self.process_state_for_network(batch[i])
+        #   batch_state[i,:s1,:s2,:s3*len(batch[0])] = state
+        batch_state=np.float32(batch)
+        batch_state=np.transpose(batch_state,(0,2,3,1))
 
         return batch_state
 

@@ -3,6 +3,7 @@ from collections import deque, namedtuple
 import random
 import numpy as np
 from pdb import set_trace as debug
+import tensorflow
 
 Experience = namedtuple('Experience', 'state, action, reward, next_state, terminal')
 
@@ -285,7 +286,7 @@ class SequentialMemory(ReplayMemory):
       obs=[recent_observation]
       for idx in xrange(1, self.window_length):
         obs.insert(0,self.current_observation[self.window_length-idx])
-      return obs
+      return np.array(obs)
 
     def append(self,observation,action,reward,terminal):
       #Add the observations to the replay buffer.
@@ -328,10 +329,10 @@ class SequentialMemory(ReplayMemory):
 
         next_state=[self.observations[idx-i+1] for i in reversed(xrange(self.window_length))]
         action=self.actions[idx]
-        # TODO what happens if the any state or next state is terminal inside a batch? I think we should sample again
-        # TODO is the +1 valid? for reward and terminal state
-        terminal=self.terminals[idx+1]
-        reward=self.rewards[idx+1]
+        # TODO what happens if the any state or next state is terminal inside a batch? I think we should sample again.(can we ignore it?)
+        # TODO is the +1 valid? for reward and terminal state(corrected)
+        terminal=self.terminals[idx]
+        reward=self.rewards[idx]
 
         batch.append(Experience(state, action, reward, next_state, terminal))
 

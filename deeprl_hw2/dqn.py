@@ -1,6 +1,8 @@
-from ipdb import set_trace as debug
+import sys
+sys.path.append('/home/amar/Keras-1.2.2')
+from pdb import set_trace as debug
 from keras.models import model_from_config
-from deeprl_hw2.objectives import huber_loss
+from objectives import huber_loss
 import keras.backend as K
 from keras.layers import Input, Lambda
 from keras.models import Model
@@ -72,6 +74,7 @@ class DQNAgent:
         self.train_freq = train_freq 
         self.batch_size = batch_size
         self.preprocessor=preprocessor
+        self.gamma=gamma
         
 
 
@@ -200,24 +203,6 @@ class DQNAgent:
         print(q_vals)
         return selected_action
 
-    def update_policy(self):
-        """Update your policy.
-
-        Behavior may differ based on what stage of training your
-        in. If you're in training mode then you should check if you
-        should update your network parameters based on the current
-        step and the value you set for train_freq.
-
-        Inside, you'll want to sample a minibatch, calculate the
-        target values, update your network, and then update your
-        target values.
-
-        You might want to return the loss and other metrics as an
-        output. They can help you monitor how training is going.
-        """
-        # TODO backprop
-        # TODO update target net weights
-        pass
 
     def fit(self, env, num_iterations, max_episode_length=None):
         """Fit your model to the provided environment.
@@ -250,8 +235,8 @@ class DQNAgent:
         prev_observation=0
         episode_reward=None
         episode_iter=None
-        self.step=0
-
+        self.step=0 
+        self.nA=env.action_space.n
 
 
         while self.step<num_iterations:
@@ -259,6 +244,8 @@ class DQNAgent:
 
           if observation is None:
           #Initiate training.(warmup phase to fill up the replay memory)
+            episode_reward=0
+            episode_iter=0
             observation = deepcopy(env.reset())
             #observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
             #observation = self.preprocessor.process_state_for_network(observation)
@@ -275,34 +262,34 @@ class DQNAgent:
                 prev_observation = 0
                 observation=deepcopy(env.reset())
                 observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
+
                 # TODO doesnt make sense to break here
                 #break
 
 
           action=self.forward(observation)
           observation1, reward, terminal, info = env.step(action)
-          env.render()
+          # env.render()
           observation = deepcopy(observation1)
           observation=self.preprocessor.process_state_for_memory(observation,prev_observation)
           prev_observation=deepcopy(observation1)
           reward=self.preprocessor.process_reward(reward)
-          # TODO Sai: why appending to memory in backward funciton? this is more efficient no?
-          #self.recent_observation=observation
-          #self.recent_action=action
+          #Add the sample to replay memory.
           self.memory.append(observation,action,reward,terminal)
 
           #Do backward pass parameter update.
-          debug()
           self.backward()
+          episode_reward+=reward
+          episode_iter+=1
+          self.step+=1
+
+          #Reset environment if terminal.
           if terminal:
-            # TODO do a forward and back here?
+            episode_iter,episode_reward=0,0
             observation=env.reset()
             prev_observation = 0
+            observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
             break
-
-
-
-
 
 
 
@@ -321,7 +308,7 @@ class DQNAgent:
 
       if self.step%self.train_freq==0:
 
-        experiences = self.memory.sample(2)#self.batch_size)
+        experiences = self.memory.sample(self.batch_size)
 
         #Extract the parameters out of experience data structure.
         state_batch = []
@@ -345,8 +332,37 @@ class DQNAgent:
         # TODO add rewards
         target_values = self.target.predict_on_batch(next_state_batch)    
         q_batch = np.max(target_values, axis=1).flatten()
-        # TODO call update policy
-        
+
+        #Used for setting up target batch for training.
+        targets = np.zeros((self.batch_size, self.nA))
+        dummy_targets = np.zeros((self.batch_size,))
+        masks = np.zeros((self.batch_size, self.nA))
+        discounted_reward_batch = self.gamma * q_batch
+
+        #Set discounted reward to zero for terminal states.
+        discounted_reward_batch *= terminal_batch
+        target_qvalue=reward_batch + discounted_reward_batch
+
+        #Set up the targets.
+        for idx, (target, mask, R, action) in enumerate(zip(targets, masks, target_qvalue, action_batch)):
+          target[action] = R 
+          dummy_targets[idx] = R
+          mask[action] = 1. 
+
+        metrics = self.trainable_model.train_on_batch([state_batch, targets, masks], [dummy_targets, targets])
+
+        if self.step % self.target_update_freq == 0:
+          self.update_target_model_hard()
+
+        return metrics
+
+
+
+    def update_target_model_hard(self):
+
+      self.target.set_weights(self.model.get_weights())
+
+
 
 
 

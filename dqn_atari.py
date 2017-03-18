@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 """Run Atari Environment with DQN."""
+import sys
+sys.path.append('/home/amar/Keras-1.2.2')
 import argparse
 import os
 import random
@@ -21,7 +23,7 @@ from deeprl_hw2.preprocessors import AtariPreprocessor, HistoryPreprocessor
 from deeprl_hw2.core import *#ReplayMemory
 
 
-from ipdb import set_trace as debug
+from pdb import set_trace as debug
 
 def create_model(window, input_shape, num_actions,
                  model_name='q_network'):  # noqa: D103
@@ -53,6 +55,7 @@ def create_model(window, input_shape, num_actions,
       The Q-model.
     """
     filters = [64,64,64]
+    print input_shape
     state_input = Input(shape=(input_shape[0],input_shape[1],input_shape[2]*window))
     model = BatchNormalization()(state_input)
     model = Convolution2D(filters[0], 3, 3, border_mode='same')(model)
@@ -125,7 +128,7 @@ def main():  # noqa: D103
     epsilon = 0.3
     window = 4
     num_actions = env.action_space.n
-    state_size = (84,84,3)#env.observation_space.shape
+    state_size = (84,84,1)#env.observation_space.shape
     new_size = state_size
     max_size = 10000 #memory size
 
@@ -140,7 +143,7 @@ def main():  # noqa: D103
     preprocessor = AtariPreprocessor(new_size)
     memory = SequentialMemory(max_size=max_size, window_length=window)
     gamma = 0.9
-    target_update_freq = 0.01
+    target_update_freq = 100
     train_freq = 1
     batch_size = 1
     num_burn_in = 10*batch_size
