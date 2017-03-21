@@ -8,6 +8,7 @@ from keras.layers import Input, Lambda
 from keras.models import Model
 from copy import deepcopy
 import numpy as np
+from utils import *
 
 def mean_q(y_true, y_pred):
     print('in metric')
@@ -106,9 +107,15 @@ class DQNAgent:
         }
         self.target = model_from_config(config, custom_objects={})#custom_objects)
         self.target.set_weights(self.model.get_weights())
-        self.target.compile(optimizer='sgd', loss='mse')
-        self.model.compile(optimizer='sgd', loss='mse')
+        self.target.compile(optimizer='adam', loss='mse')
+        self.model.compile(optimizer='adam', loss='mse')
         
+
+        #Update the target network using soft updates.
+        if self.target_update_freq < 1.:
+          updates = get_soft_target_model_updates(self.target, self.model, self.target_update_freq)
+          optimizer = UpdatesOptimizer(optimizer, updates)
+
         #TODO: target model weights update sperately while updating network
         self.max_grad = 1.0 
         def masked_error(args):
@@ -199,8 +206,6 @@ class DQNAgent:
             q_vals = self.calc_q_values(state)[0]
             selected_action = self.g_policy.select_action(q_vals)
 
-        #pass
-        print(q_vals)
         return selected_action
 
 
@@ -244,6 +249,7 @@ class DQNAgent:
 
           if observation is None:
           #Initiate training.(warmup phase to fill up the replay memory)
+            print("Warmup start")
             episode_reward=0
             episode_iter=0
             observation = deepcopy(env.reset())
@@ -262,14 +268,14 @@ class DQNAgent:
                 prev_observation = 0
                 observation=deepcopy(env.reset())
                 observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
-
+            print("Warmup end.")
                 # TODO doesnt make sense to break here
                 #break
 
 
           action=self.forward(observation)
           observation1, reward, terminal, info = env.step(action)
-          # env.render()
+          env.render()
           observation = deepcopy(observation1)
           observation=self.preprocessor.process_state_for_memory(observation,prev_observation)
           prev_observation=deepcopy(observation1)
@@ -285,12 +291,19 @@ class DQNAgent:
 
           #Reset environment if terminal.
           if terminal:
+            print("Iteration no.-->%d/%d")%(self.step,num_iterations)
+            print("Episode reward-->%d")%(episode_reward)
             episode_iter,episode_reward=0,0
             observation=env.reset()
             prev_observation = 0
             observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
             break
+          #End large episodes abruptly.
+          if episode_iter>max_episode_length:
+            terminal=True
 
+    
+            
 
 
 
@@ -303,7 +316,7 @@ class DQNAgent:
       return action
 
 
-    def backward(self):#, reward, terminal):
+    def backward(self):
       #self.memory.append(self.recent_observation, self.recent_action, reward, terminal)
 
       if self.step%self.train_freq==0:

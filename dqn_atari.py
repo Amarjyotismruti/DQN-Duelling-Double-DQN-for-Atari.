@@ -143,9 +143,9 @@ def main():  # noqa: D103
     preprocessor = AtariPreprocessor(new_size)
     memory = SequentialMemory(max_size=max_size, window_length=window)
     gamma = 0.9
-    target_update_freq = 100
+    target_update_freq = 0.3
     train_freq = 1
-    batch_size = 1
+    batch_size = 5
     num_burn_in = 10*batch_size
 
     model = create_model(window, state_size, num_actions)
@@ -162,10 +162,10 @@ def main():  # noqa: D103
     #testing
     #selected_action = dqnA.select_action( np.random.rand(1,210,160,12), train=1, warmup_phase=0)
     h_loss = huber_loss
-    dqnA.compile('sgd', h_loss)
-    dqnA.fit(env, 10000, 100)
+    optimizer = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
+    dqnA.compile(optimizer, h_loss)
+    dqnA.fit(env, 100000, 100)
 
-    debug()
 
 if __name__ == '__main__':
     main()
