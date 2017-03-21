@@ -10,10 +10,24 @@ from copy import deepcopy
 import numpy as np
 from utils import *
 
-def mean_q(y_true, y_pred):
-    print('in metric')
-    print('y_true', y_true)
-    print('y_pred', y_pred)
+def q_pred_m(y_true, y_pred):
+    return K.mean(K.mean(y_pred, axis=-1))
+
+def q_pred_d_m(y_true, y_pred):
+    return K.mean(K.mean( K.abs(y_pred-y_true) , axis=-1))
+
+def mean_max_tq(y_true, y_pred):
+    #print('in metric')
+    #print('y_true', y_true)
+    #print('y_pred', y_pred)
+    #print(K.mean(K.max(y_pred, axis=-1))) 
+    return K.mean(K.max(y_true, axis=-1))
+
+def mean_max_q(y_true, y_pred):
+    #print('in metric')
+    #print('y_true', y_true)
+    #print('y_pred', y_pred)
+    #print(K.mean(K.max(y_pred, axis=-1))) 
     return K.mean(K.max(y_pred, axis=-1))
 
 """Main DQN agent."""
@@ -98,7 +112,9 @@ class DQNAgent:
         """
         self.optimizer = optimizer 
         self.loss_func = loss_func 
-        metrics += [mean_q]
+        metrics += [mean_max_q, mean_max_tq]
+        #metrics += [q_pred_m, mean_max_q]
+        #metrics += [q_pred_d_m]
         
         # create target network with random optimizer
         config = {
@@ -238,8 +254,9 @@ class DQNAgent:
         iterations=0
         observation=None
         prev_observation=0
-        episode_reward=None
-        episode_iter=None
+        episode_reward=0#None
+        episode_iter=0#None
+        episode_metric=0
         self.step=0 
         self.nA=env.action_space.n
 
@@ -250,15 +267,14 @@ class DQNAgent:
           if observation is None:
           #Initiate training.(warmup phase to fill up the replay memory)
             print("Warmup start")
-            episode_reward=0
-            episode_iter=0
             observation = deepcopy(env.reset())
             #observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
             #observation = self.preprocessor.process_state_for_network(observation)
-            for _ in xrange(self.num_burn_in):
+            for i_ in xrange(self.num_burn_in):
 
               action = self.select_action(observation, train=True, warmup_phase=True)
               observation1, reward, terminal, info = env.step(action)
+              env.render()
               observation = deepcopy(observation1)
               observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
               prev_observation = deepcopy(observation1)
@@ -284,23 +300,24 @@ class DQNAgent:
           self.memory.append(observation,action,reward,terminal)
 
           #Do backward pass parameter update.
-          self.backward()
+          metric = self.backward()
+          episode_metric += metric
           episode_reward+=reward
           episode_iter+=1
           self.step+=1
 
+          #End large episodes abruptly.
+          if episode_iter>max_episode_length:
+            terminal=True
           #Reset environment if terminal.
           if terminal:
             print("Iteration no.-->%d/%d")%(self.step,num_iterations)
             print("Episode reward-->%d")%(episode_reward)
-            episode_iter,episode_reward=0,0
+            print("Episode metric-->",episode_metric/episode_iter)
+            episode_iter,episode_reward,episode_metric=0,0,0
             observation=env.reset()
             prev_observation = 0
             observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
-            break
-          #End large episodes abruptly.
-          if episode_iter>max_episode_length:
-            terminal=True
 
     
             
@@ -367,7 +384,7 @@ class DQNAgent:
         if self.step % self.target_update_freq == 0:
           self.update_target_model_hard()
 
-        return metrics
+        return np.array(metrics)
 
 
 
