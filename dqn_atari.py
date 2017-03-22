@@ -114,7 +114,8 @@ def main():  # noqa: D103
     #(SpaceInvaders-v0
     # Enduro-v0
     parser = argparse.ArgumentParser(description='Run DQN on Atari Breakout')
-    parser.add_argument('--env', default='SpaceInvaders-v0', help='Atari env name')
+    parser.add_argument('--env', default='Enduro-v0', help='Atari env name')
+    #parser.add_argument('--env', default='SpaceInvaders-v0', help='Atari env name')
     #parser.add_argument('--env', default='PendulumSai-v0', help='Atari env name')
     parser.add_argument(
         '-o', '--output', default='atari-v0', help='Directory to save data to')
@@ -132,7 +133,7 @@ def main():  # noqa: D103
     env = gym.make(args.env)
     num_iter = 1000000
     #max_epi_iter = 370
-    max_epi_iter = 5000
+    max_epi_iter = 50
     
     epsilon = 0.05
     window = 4
@@ -140,7 +141,7 @@ def main():  # noqa: D103
     target_update_freq = 1500#0.0001
     train_freq = 1
     batch_size = 8#32#16
-    num_burn_in = 502*batch_size
+    num_burn_in = 50*batch_size
     num_actions = env.action_space.n
     state_size = (84,84,1)#env.observation_space.shape
     new_size = state_size

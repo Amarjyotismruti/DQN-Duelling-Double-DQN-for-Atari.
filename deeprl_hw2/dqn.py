@@ -164,7 +164,7 @@ class DQNAgent:
             ]
         trainable_model.compile(optimizer=optimizer, loss=losses, metrics=prop_metrics)
         self.trainable_model = trainable_model
-        self.writer=tf.summary.FileWriter("logs/bin")
+        #self.writer=tf.summary.FileWriter("logs/bin")
 
         #def get_activations(model, layer, X_batch):
         #    get_activations = K.function([model.layers[0].input, K.learning_phase()], [model.layers[layer].output,])
@@ -316,7 +316,7 @@ class DQNAgent:
 
           #Do backward pass parameter update.
           metric = self.backward()
-          print "The metrics are:", metrics
+          #print "The metrics are:", metric
           episode_metric += metric
           episode_reward+=reward1
           episode_iter+=1
@@ -352,8 +352,8 @@ class DQNAgent:
             print("Episode metric-->",episode_metric/episode_iter)
             episode_no+=1
             #Logging episode metrics.
-            save_scalar(episode_no, 'Episode_reward',episode_reward, self.writer)
-            save_scalar(episode_no, 'Episode_length',episode_iter, self.writer)
+            #save_scalar(episode_no, 'Episode_reward',episode_reward, self.writer)
+            #save_scalar(episode_no, 'Episode_length',episode_iter, self.writer)
             tot_rewards.append(episode_reward)
             plt.clf()
             plt.plot(tot_rewards)
@@ -368,10 +368,10 @@ class DQNAgent:
           #Write metrics in tensorflow filewriter.
           """ Loss, mean_q_values, episode_reward, episode_iter
           """
-          loss_s=metrics[0]
-          mean_q_s=metrics[1]
-          save_scalar(self.step, 'Loss', loss_s, self.writer)
-          save_scalar(self.step, 'Mean_Q', mean_q_s, self.writer)
+          loss_s=metric[0]
+          mean_q_s=metric[1]
+          #save_scalar(self.step, 'Loss', loss_s, self.writer)
+          #save_scalar(self.step, 'Mean_Q', mean_q_s, self.writer)
     
             
 
