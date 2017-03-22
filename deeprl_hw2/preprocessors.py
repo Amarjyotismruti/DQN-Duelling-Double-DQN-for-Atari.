@@ -93,7 +93,7 @@ class AtariPreprocessor(Preprocessor):
         image conversions.
         """
         #TODO change this back
-        obs=np.maximum(obs,prev_obs)
+        #obs=np.maximum(obs,prev_obs)
         im=Image.fromarray(np.uint8(obs))
         obs=im.convert('L')
         obs=obs.resize((84,84))
