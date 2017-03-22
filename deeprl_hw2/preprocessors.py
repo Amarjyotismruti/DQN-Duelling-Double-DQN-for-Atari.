@@ -92,7 +92,8 @@ class AtariPreprocessor(Preprocessor):
         We recommend using the Python Image Library (PIL) to do the
         image conversions.
         """
-        obs=np.maximum(obs,prev_obs)
+        #TODO change this back
+        #obs=np.maximum(obs,prev_obs)
         im=Image.fromarray(np.uint8(obs))
         obs=im.convert('L')
         obs=obs.resize((84,84))

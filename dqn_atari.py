@@ -57,11 +57,13 @@ def create_model(window, input_shape, num_actions,
     print input_shape
     state_input = Input(shape=(input_shape[0],input_shape[1],input_shape[2]*window))
     model = BatchNormalization()(state_input)
-    model = Convolution2D(16, 4, 4, border_mode='same', activation='relu', name='image_conv1', subsample=[4,4])(model)
+    model = Convolution2D(16, 4, 4, border_mode='same', activation='relu', name='image_conv1', subsample=[2,2])(model)
     model = BatchNormalization()(model)
     model = Convolution2D(32, 2, 2, border_mode='same', activation='relu', name='image_conv2', subsample=[2,2])(model)
     model = BatchNormalization()(model)
     model = Convolution2D(32, 2, 2, border_mode='same', activation='relu', name='image_conv3', subsample=[2,2])(model)
+    model = BatchNormalization()(model)
+    model = Convolution2D(32, 2, 2, border_mode='same', activation='relu', name='image_conv4', subsample=[2,2])(model)
     model = Flatten()(model)
     model = Dense(num_actions)(model)
 
@@ -107,12 +109,13 @@ def get_output_folder(parent_dir, env_name):
     parent_dir = parent_dir + '-run{}'.format(experiment_id)
     return parent_dir
 
-
+import envs
 def main():  # noqa: D103
     #(SpaceInvaders-v0
     # Enduro-v0
     parser = argparse.ArgumentParser(description='Run DQN on Atari Breakout')
     parser.add_argument('--env', default='SpaceInvaders-v0', help='Atari env name')
+    #parser.add_argument('--env', default='PendulumSai-v0', help='Atari env name')
     parser.add_argument(
         '-o', '--output', default='atari-v0', help='Directory to save data to')
     parser.add_argument('--seed', default=0, type=int, help='Random seed')
@@ -127,22 +130,23 @@ def main():  # noqa: D103
     # then you can run your fit method.
 
     env = gym.make(args.env)
-    num_iter = 100000
-    max_epi_iter = 7000
+    num_iter = 1000000
+    #max_epi_iter = 370
+    max_epi_iter = 5000
     
-    epsilon = 0.2
+    epsilon = 0.05
     window = 4
     gamma = 0.99
-    target_update_freq = 0.0001
+    target_update_freq = 1500#0.0001
     train_freq = 1
-    batch_size = 16
-    num_burn_in = 500*batch_size
+    batch_size = 8#32#16
+    num_burn_in = 502*batch_size
     num_actions = env.action_space.n
     state_size = (84,84,1)#env.observation_space.shape
     new_size = state_size
-    max_size = 10000 #memory size
+    max_size = 80000 #memory size
     
-    lr = 0.00001
+    lr = 0.005
     beta_1 = 0.9
     beta_2 = 0.999
     epsilon = 1e-08

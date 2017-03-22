@@ -2,7 +2,7 @@
 from collections import deque, namedtuple
 import random
 import numpy as np
-from pdb import set_trace as debug
+from ipdb import set_trace as debug
 import tensorflow
 
 Experience = namedtuple('Experience', 'state, action, reward, next_state, terminal')
@@ -309,8 +309,43 @@ class SequentialMemory(ReplayMemory):
 
       return np.array(batch_indexes)
 
+    def sample(self, batch_size):
+      """Sample batches from the replay memory for training"""
+      
+      sam = 0
+      #Compile the experience as a batch
+      batch=[]
+      
+      while len(batch)<batch_size:
+        no_mix = 1
+        idx=self.sample_batch_indexes(self.window_length, self.memsize-1, 1)[0]
 
-    def sample(self, batch_size, indexes=None):
+        #Check for indexes that can go lower than 0.
+        if idx<self.window_length:
+          idx+=self.window_length
+
+        state=[]
+        for i in xrange(self.window_length):
+          state.insert(0,self.observations[idx-i])
+          if self.terminals[idx-i]:
+            no_mix = 0
+            break
+        if no_mix == 1:
+          next_state=[self.observations[idx-i+1] for i in reversed(xrange(self.window_length))]
+          action=self.actions[idx+1]
+          # TODO what happens if the any state or next state is terminal inside a batch? I think we should sample again.(can we ignore it?)
+          # TODO is the +1 valid? for reward and terminal state(corrected)
+          terminal=self.terminals[idx+1]
+          reward=self.rewards[idx+1]
+
+          batch.append(Experience(state, action, reward, next_state, terminal))
+        #else:
+        #    debug()
+
+
+      return batch
+
+    def sample_old(self, batch_size, indexes=None):
       """Sample batches from the replay memory for training"""
       
       if indexes==None:
