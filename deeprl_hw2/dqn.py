@@ -264,6 +264,7 @@ class DQNAgent:
         episode_reward=0#None
         episode_iter=0#None
         episode_metric=0
+        episode_no=0
         self.step=0 
         self.prestep = 0
         self.nA=env.action_space.n
@@ -285,7 +286,9 @@ class DQNAgent:
               observation1, reward, terminal, info = env.step(action)
               env.render()
               observation = deepcopy(observation1)
-              observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
+              #observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
+              #TODO why?
+              observation = self.preprocessor.process_state_for_memory(observation)
               prev_observation = deepcopy(observation1)
               #reward = self.preprocessor.process_reward(reward)
               self.memory.append(observation,action,reward,terminal)
@@ -298,19 +301,23 @@ class DQNAgent:
 
           self.observation=deepcopy(observation)
           action=self.forward(observation)
-          observation1, reward, terminal, info = env.step(action)
-          env.render()
-          observation = deepcopy(observation1)
-          observation=self.preprocessor.process_state_for_memory(observation,prev_observation)
-          prev_observation=deepcopy(observation1)
-          #reward=self.preprocessor.process_reward(reward)
+          reward1=0
+           #Take the same action four times to reduce reaction frequency.
+           for _ in xrange(action_rep):
+             observation1, reward0, terminal, info = env.step(action)
+             env.render()
+             observation = deepcopy(observation1)
+             observation=self.preprocessor.process_state_for_memory(observation)
+             reward=self.preprocessor.process_reward(reward0)
+             reward1+=reward0
           #Add the sample to replay memory.
           self.memory.append(self.observation,action,reward1,terminal)
 
           #Do backward pass parameter update.
           metric = self.backward()
+          print "The metrics are:", metrics
           episode_metric += metric
-          episode_reward+=reward
+          episode_reward+=reward1
           episode_iter+=1
           self.step+=1
           
@@ -326,7 +333,7 @@ class DQNAgent:
             #Do backward pass parameter update.
             metric = self.backward()
             episode_metric += metric
-            episode_reward+=reward
+            episode_reward+=0
             episode_iter+=1
             self.step+=1
             
@@ -350,6 +357,9 @@ class DQNAgent:
             plt.clf()
             plt.plot(tot_rewards)
             plt.pause(0.01)
+            episode_iter,episode_reward,episode_metric=0,0,0
+            observation=env.reset()
+            observation = self.preprocessor.process_state_for_memory(observation)
 
 
           #End large episodes abruptly.
