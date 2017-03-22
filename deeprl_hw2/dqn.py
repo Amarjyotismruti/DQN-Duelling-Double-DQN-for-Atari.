@@ -11,9 +11,9 @@ import numpy as np
 from utils import *
 
 def mean_q(y_true, y_pred):
-    print('in metric')
-    print('y_true', y_true)
-    print('y_pred', y_pred)
+    # print('in metric')
+    # print('y_true', y_true)
+    # print('y_pred', y_pred)
     return K.mean(K.max(y_pred, axis=-1))
 
 """Main DQN agent."""
@@ -138,9 +138,9 @@ class DQNAgent:
                 lambda y_true, y_pred: y_pred,  # loss is computed in Lambda layer
                 lambda y_true, y_pred: K.zeros_like(y_pred),  # we only include this for the metrics
             ]
-        
         trainable_model.compile(optimizer=optimizer, loss=losses, metrics=prop_metrics)
         self.trainable_model = trainable_model
+        self.writer=tf.summary.FileWriter("logs/bin")
 
         #def get_activations(model, layer, X_batch):
         #    get_activations = K.function([model.layers[0].input, K.learning_phase()], [model.layers[layer].output,])
@@ -237,11 +237,12 @@ class DQNAgent:
         episode=0
         iterations=0
         observation=None
-        prev_observation=0
         episode_reward=None
         episode_iter=None
+        episode_no=0
         self.step=0 
         self.nA=env.action_space.n
+        action_rep=4
 
 
         while self.step<num_iterations:
@@ -260,48 +261,58 @@ class DQNAgent:
               action = self.select_action(observation, train=True, warmup_phase=True)
               observation1, reward, terminal, info = env.step(action)
               observation = deepcopy(observation1)
-              observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
-              prev_observation = deepcopy(observation1)
+              observation = self.preprocessor.process_state_for_memory(observation)
               reward = self.preprocessor.process_reward(reward)
               self.memory.append(observation,action,reward,terminal)
               if terminal:
-                prev_observation = 0
                 observation=deepcopy(env.reset())
-                observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
+                observation = self.preprocessor.process_state_for_memory(observation)
             print("Warmup end.")
                 # TODO doesnt make sense to break here
                 #break
 
-
+          self.observation=deepcopy(observation)
           action=self.forward(observation)
-          observation1, reward, terminal, info = env.step(action)
-          env.render()
-          observation = deepcopy(observation1)
-          observation=self.preprocessor.process_state_for_memory(observation,prev_observation)
-          prev_observation=deepcopy(observation1)
-          reward=self.preprocessor.process_reward(reward)
+          reward1=0
+          #Take the same action four times to reduce reaction frequency.
+          for _ in xrange(action_rep):
+            observation1, reward0, terminal, info = env.step(action)
+            env.render()
+            observation = deepcopy(observation1)
+            observation=self.preprocessor.process_state_for_memory(observation)
+            reward=self.preprocessor.process_reward(reward0)
+            reward1+=reward0
           #Add the sample to replay memory.
-          self.memory.append(observation,action,reward,terminal)
+          self.memory.append(self.observation,action,reward1,terminal)
 
           #Do backward pass parameter update.
-          self.backward()
-          episode_reward+=reward
+          metrics=self.backward()
+          print "The metrics are:", metrics
           episode_iter+=1
           self.step+=1
-
+          episode_reward+=reward1
           #Reset environment if terminal.
           if terminal:
-            print("Iteration no.-->%d/%d")%(self.step,num_iterations)
+            print("Iteration no.-->%d/%d||Episode no.-->%d")%(self.step,num_iterations,episode_no)
             print("Episode reward-->%d")%(episode_reward)
+            episode_no+=1
+            #Logging episode metrics.
+            save_scalar(episode_no, 'Episode_reward',episode_reward, self.writer)
+            save_scalar(episode_no, 'Episode_length',episode_iter, self.writer)
             episode_iter,episode_reward=0,0
             observation=env.reset()
-            prev_observation = 0
-            observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
-            break
+            observation = self.preprocessor.process_state_for_memory(observation)
           #End large episodes abruptly.
           if episode_iter>max_episode_length:
             terminal=True
 
+          #Write metrics in tensorflow filewriter.
+          """ Loss, mean_q_values, episode_reward, episode_iter
+          """
+          loss_s=metrics[0]
+          mean_q_s=metrics[1]
+          save_scalar(self.step, 'Loss', loss_s, self.writer)
+          save_scalar(self.step, 'Mean_Q', mean_q_s, self.writer)
     
             
 
@@ -366,7 +377,7 @@ class DQNAgent:
 
         if self.step % self.target_update_freq == 0:
           self.update_target_model_hard()
-
+        metrics = [metric for idx, metric in enumerate(metrics) if idx not in (1, 2)]
         return metrics
 
 
@@ -374,18 +385,6 @@ class DQNAgent:
     def update_target_model_hard(self):
 
       self.target.set_weights(self.model.get_weights())
-
-
-
-
-
-
-
-
-                               
-
-
-
 
 
 
@@ -407,10 +406,10 @@ class DQNAgent:
         You can also call the render function here if you want to
         visually inspect your policy.
         """
-        pass
+        
 
 
-    def save_weights(self, filepath,overwrite=True):
+    def save_weights(self, pylon5 ,overwrite=True):
       """Save network parameters periodically"""
       self.model.save_weights(filepath, overwrite=overwrite)
 

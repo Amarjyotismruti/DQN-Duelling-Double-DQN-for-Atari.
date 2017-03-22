@@ -54,13 +54,13 @@ def create_model(window, input_shape, num_actions,
     keras.models.Model
       The Q-model.
     """
-    filters = [64,64,64]
+    filters = [32,64,64]
     print input_shape
     state_input = Input(shape=(input_shape[0],input_shape[1],input_shape[2]*window))
     model = BatchNormalization()(state_input)
-    model = Convolution2D(filters[0], 3, 3, border_mode='same')(model)
+    model = Convolution2D(filters[0], 8, 8, border_mode='same')(model)
     model = BatchNormalization()(model)
-    model = Convolution2D(filters[1], 3, 3, border_mode='same')(model)
+    model = Convolution2D(filters[1], 4, 4, border_mode='same')(model)
     model = BatchNormalization()(model)
     model = Flatten()(model)
     model = Dense(num_actions)(model)
@@ -110,7 +110,7 @@ def get_output_folder(parent_dir, env_name):
 
 def main():  # noqa: D103
     parser = argparse.ArgumentParser(description='Run DQN on Atari Breakout')
-    parser.add_argument('--env', default='SpaceInvaders-v0', help='Atari env name')
+    parser.add_argument('--env', default='Breakout-v0', help='Atari env name')
     parser.add_argument(
         '-o', '--output', default='atari-v0', help='Directory to save data to')
     parser.add_argument('--seed', default=0, type=int, help='Random seed')
@@ -125,12 +125,13 @@ def main():  # noqa: D103
     # then you can run your fit method.
 
     env = gym.make(args.env)
-    epsilon = 0.3
+    epsilon = 0.5
     window = 4
+    #Set env actions.
     num_actions = env.action_space.n
     state_size = (84,84,1)#env.observation_space.shape
     new_size = state_size
-    max_size = 10000 #memory size
+    max_size = 400000 #memory size
 
     u_policy = UniformRandomPolicy( num_actions)
     ge_policy = GreedyEpsilonPolicy(epsilon)
@@ -142,11 +143,11 @@ def main():  # noqa: D103
     #preprocessor = PreprocessorSequence([AtariPreprocessor(new_size), HistoryPreprocessor(window)])
     preprocessor = AtariPreprocessor(new_size)
     memory = SequentialMemory(max_size=max_size, window_length=window)
-    gamma = 0.9
-    target_update_freq = 0.3
+    gamma = 0.99
+    target_update_freq = 1000
     train_freq = 1
-    batch_size = 5
-    num_burn_in = 10*batch_size
+    batch_size = 10
+    num_burn_in = 5000
 
     model = create_model(window, state_size, num_actions)
     print model.summary()
@@ -162,7 +163,8 @@ def main():  # noqa: D103
     #testing
     #selected_action = dqnA.select_action( np.random.rand(1,210,160,12), train=1, warmup_phase=0)
     h_loss = huber_loss
-    optimizer = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
+    optimizer = Adam(lr=0.00025, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
+
     dqnA.compile(optimizer, h_loss)
     dqnA.fit(env, 100000, 100)
 

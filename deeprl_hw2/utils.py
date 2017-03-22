@@ -76,27 +76,6 @@ def get_soft_target_model_updates(target, source, tau):
     
 
 
-def get_hard_target_model_updates(target, source):
-    """Return list of target model update ops.
-
-    These are hard target updates. The source weights are copied
-    directly to the target network.
-
-    Parameters
-    ----------
-    target: keras.models.Model
-      The target model. Should have same architecture as source model.
-    source: keras.models.Model
-      The source model. Should have same architecture as target model.
-
-    Returns
-    -------
-    list(tf.Tensor)
-      List of tensor update ops.
-    """
-    pass
-
-
 class UpdatesOptimizer(optimizers.Optimizer):
     def __init__(self, optimizer, extra_updates):
         super(UpdatesOptimizer, self).__init__()
@@ -111,3 +90,49 @@ class UpdatesOptimizer(optimizers.Optimizer):
 
     def get_config(self):
         return self.optimizer.get_config()
+
+
+#Callbacks for the models.
+from keras.callbacks import Callback as keras_callback, CallbackList as KerasCallbackList
+
+class Callback(keras_callback):
+    def _set_env(self, env):
+        self.env = env
+
+    def on_episode_begin(self, episode, logs={}):
+        pass
+
+    def on_episode_end(self, episode, logs={}):
+        pass
+
+    def on_step_begin(self, step, logs={}):
+        pass
+
+    def on_step_end(self, step, logs={}):
+        pass
+
+    def on_action_begin(self, action, logs={}):
+        pass
+
+    def on_action_end(self, action, logs={}):
+        pass
+
+def save_scalar(step, name, value, writer):
+  """Save a scalar value to tensorboard.
+  
+  Parameters
+  ----------
+  step: int
+    Training step (sets the position on x-axis of tensorboard graph.
+  name: str
+    Name of variable. Will be the name of the graph in tensorboard.
+  value: float
+    The value of the variable at this step.
+  writer: tf.FileWriter
+    The tensorboard FileWriter instance.
+  """
+  summary = tf.Summary()
+  summary_value = summary.value.add()
+  summary_value.simple_value = float(value)
+  summary_value.tag = name
+  writer.add_summary(summary, step)
