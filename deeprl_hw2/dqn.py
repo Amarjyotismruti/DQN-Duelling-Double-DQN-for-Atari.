@@ -4,6 +4,7 @@ from ipdb import set_trace as debug
 from keras.models import model_from_config
 from objectives import huber_loss
 import keras.backend as K
+import tensorflow as tf
 from keras.layers import Input, Lambda
 from keras.models import Model
 from copy import deepcopy
@@ -302,8 +303,8 @@ class DQNAgent:
           self.observation=deepcopy(observation)
           action=self.forward(observation)
           reward1=0
-           #Take the same action four times to reduce reaction frequency.
-           for _ in xrange(action_rep):
+          #Take the same action four times to reduce reaction frequency.
+          for _ in xrange(action_rep):
              observation1, reward0, terminal, info = env.step(action)
              env.render()
              observation = deepcopy(observation1)
