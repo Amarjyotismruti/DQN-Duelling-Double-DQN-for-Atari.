@@ -70,7 +70,7 @@ def create_model(window, input_shape, num_actions,
     model_f = Model(input=state_input, output=model)
 
     return model_f
-    #pass
+
 
 
 def get_output_folder(parent_dir, env_name):

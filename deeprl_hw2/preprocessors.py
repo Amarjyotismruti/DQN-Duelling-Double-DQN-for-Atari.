@@ -82,7 +82,7 @@ class AtariPreprocessor(Preprocessor):
     def __init__(self, new_size=(84,84)):
         self.new_size=new_size
 
-    def process_state_for_memory(self, obs, prev_obs):
+    def process_state_for_memory(self, obs):
         """Scale, convert to greyscale and store as uint8.
 
         We don't want to save floating point numbers in the replay
@@ -93,7 +93,7 @@ class AtariPreprocessor(Preprocessor):
         image conversions.
         """
         #TODO change this back
-        #obs=np.maximum(obs,prev_obs)
+        obs=np.maximum(obs,prev_obs)
         im=Image.fromarray(np.uint8(obs))
         obs=im.convert('L')
         obs=obs.resize((84,84))

@@ -161,9 +161,9 @@ class DQNAgent:
                 lambda y_true, y_pred: y_pred,  # loss is computed in Lambda layer
                 lambda y_true, y_pred: K.zeros_like(y_pred),  # we only include this for the metrics
             ]
-        
         trainable_model.compile(optimizer=optimizer, loss=losses, metrics=prop_metrics)
         self.trainable_model = trainable_model
+        self.writer=tf.summary.FileWriter("logs/bin")
 
         #def get_activations(model, layer, X_batch):
         #    get_activations = K.function([model.layers[0].input, K.learning_phase()], [model.layers[layer].output,])
@@ -267,6 +267,7 @@ class DQNAgent:
         self.step=0 
         self.prestep = 0
         self.nA=env.action_space.n
+        action_rep=4
 
 
         while self.step<num_iterations:
@@ -289,14 +290,13 @@ class DQNAgent:
               #reward = self.preprocessor.process_reward(reward)
               self.memory.append(observation,action,reward,terminal)
               if terminal:
-                prev_observation = 0
                 observation=deepcopy(env.reset())
-                observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
+                observation = self.preprocessor.process_state_for_memory(observation)
             print("Warmup end.")
                 # TODO doesnt make sense to break here
                 #break
 
-
+          self.observation=deepcopy(observation)
           action=self.forward(observation)
           observation1, reward, terminal, info = env.step(action)
           env.render()
@@ -305,7 +305,7 @@ class DQNAgent:
           prev_observation=deepcopy(observation1)
           #reward=self.preprocessor.process_reward(reward)
           #Add the sample to replay memory.
-          self.memory.append(observation,action,reward,terminal)
+          self.memory.append(self.observation,action,reward1,terminal)
 
           #Do backward pass parameter update.
           metric = self.backward()
@@ -342,17 +342,25 @@ class DQNAgent:
             self.prestep = self.step
             print("Episode reward-->%d")%(episode_reward)
             print("Episode metric-->",episode_metric/episode_iter)
+            episode_no+=1
+            #Logging episode metrics.
+            save_scalar(episode_no, 'Episode_reward',episode_reward, self.writer)
+            save_scalar(episode_no, 'Episode_length',episode_iter, self.writer)
             tot_rewards.append(episode_reward)
             plt.clf()
             plt.plot(tot_rewards)
             plt.pause(0.01)
 
 
-            episode_iter,episode_reward,episode_metric=0,0,0
-            observation=env.reset()
-            prev_observation = 0
-            observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
+          #End large episodes abruptly.
 
+          #Write metrics in tensorflow filewriter.
+          """ Loss, mean_q_values, episode_reward, episode_iter
+          """
+          loss_s=metrics[0]
+          mean_q_s=metrics[1]
+          save_scalar(self.step, 'Loss', loss_s, self.writer)
+          save_scalar(self.step, 'Mean_Q', mean_q_s, self.writer)
     
             
 
@@ -426,7 +434,7 @@ class DQNAgent:
 
         if self.target_update_freq>=1 and self.step % self.target_update_freq == 0:
           self.update_target_model_hard()
-
+        metrics = [metric for idx, metric in enumerate(metrics) if idx not in (1, 2)]
         return np.array(metrics)
 
 
@@ -434,18 +442,6 @@ class DQNAgent:
     def update_target_model_hard(self):
 
       self.target.set_weights(self.model.get_weights())
-
-
-
-
-
-
-
-
-                               
-
-
-
 
 
 
@@ -467,10 +463,10 @@ class DQNAgent:
         You can also call the render function here if you want to
         visually inspect your policy.
         """
-        pass
+        
 
 
-    def save_weights(self, filepath,overwrite=True):
+    def save_weights(self, pylon5 ,overwrite=True):
       """Save network parameters periodically"""
       self.model.save_weights(filepath, overwrite=overwrite)
 
