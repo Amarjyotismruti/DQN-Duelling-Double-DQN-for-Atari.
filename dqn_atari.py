@@ -16,7 +16,6 @@ from keras.models import Model
 from keras.optimizers import Adam
 from keras.callbacks import ProgbarLogger
 
-import deeprl_hw2 as tfrl
 from deeprl_hw2.dqn import DQNAgent
 from deeprl_hw2.objectives import mean_huber_loss, huber_loss
 from deeprl_hw2.policy import UniformRandomPolicy, GreedyPolicy, GreedyEpsilonPolicy, LinearDecayGreedyEpsilonPolicy 
