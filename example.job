@@ -13,24 +13,24 @@ set -u  # throw an error if unset variable referenced
 set -e  # exit on error
 
 # helper vars
-PYLON1=/pylon1/$(id -gn)/$USER
-PYLON2=/pylon2/$(id -gn)/$USER
+PYLON5=/pylon5/ci560ip/samarjyo
+PYLON2=/pylon2/ci560ip/samarjyo
 
 module load cuda/8.0
 
 # select which python module you want 2/3
 module load python3
-# module load python2
+module load python
 
 # switch to pylon1
 # NOTE: Files in this directory are deleted when 30 days old
-pushd $PYLON1
+pushd $PYLON5
 
 # turn on the virtualenv
-source $PYLON2/my-virtualenv/bin/activate
+source $PYLON5/deeprl-train/bin/activate
 
 # run the experiment script
-python $PYLON2/deeprl_hw2/dqn_atari.py --env Breakout-v0
+python $PYLON5/RL_assignment_2/dqn_atari.py
 
 # turn off the virtualenv
 deactivate
