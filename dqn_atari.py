@@ -110,7 +110,7 @@ def get_output_folder(parent_dir, env_name):
 
 def main():  # noqa: D103
     parser = argparse.ArgumentParser(description='Run DQN on Atari Breakout')
-    parser.add_argument('--env', default='Breakout-v0', help='Atari env name')
+    parser.add_argument('--env', default='SpaceInvaders-v0', help='Atari env name')
     parser.add_argument(
         '-o', '--output', default='atari-v0', help='Directory to save data to')
     parser.add_argument('--seed', default=0, type=int, help='Random seed')
