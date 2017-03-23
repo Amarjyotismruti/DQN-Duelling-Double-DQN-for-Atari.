@@ -19,8 +19,6 @@ PYLON2=/pylon2/ci560ip/samarjyo
 module load cuda/8.0
 
 # select which python module you want 2/3
-module load python3
-module load python
 
 # switch to pylon1
 # NOTE: Files in this directory are deleted when 30 days old

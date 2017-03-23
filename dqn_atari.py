@@ -54,7 +54,7 @@ def create_model(window, input_shape, num_actions,
     keras.models.Model
       The Q-model.
     """
-    print input_shape
+    print (input_shape)
     state_input = Input(shape=(input_shape[0],input_shape[1],input_shape[2]*window))
     model = BatchNormalization()(state_input)
     model = Convolution2D(32, 8, 8, border_mode='same', activation='relu', name='image_conv1', subsample=[4,4])(model)

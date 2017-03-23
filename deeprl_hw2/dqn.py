@@ -371,7 +371,6 @@ class DQNAgent:
       state=self.memory.get_recent_observation(observation)
       state=self.preprocessor.process_state_for_network(state)
       action=self.select_action(state=state, train=True, warmup_phase=False)
-      print action
       return action
 
 
