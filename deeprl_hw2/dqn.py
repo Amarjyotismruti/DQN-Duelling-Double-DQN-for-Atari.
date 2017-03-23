@@ -1,5 +1,5 @@
-import sys
-sys.path.append('/home/amar/Keras-1.2.2')
+# import sys
+# sys.path.append('/home/amar/Keras-1.2.2')
 from pdb import set_trace as debug
 from keras.models import model_from_config
 from objectives import huber_loss
