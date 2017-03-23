@@ -1,19 +1,38 @@
 import sys
 sys.path.append('/home/amar/Keras-1.2.2')
-from pdb import set_trace as debug
+from ipdb import set_trace as debug
 from keras.models import model_from_config
 from objectives import huber_loss
 import keras.backend as K
+import tensorflow as tf
 from keras.layers import Input, Lambda
 from keras.models import Model
 from copy import deepcopy
 import numpy as np
 from utils import *
 
-def mean_q(y_true, y_pred):
-    # print('in metric')
-    # print('y_true', y_true)
-    # print('y_pred', y_pred)
+import matplotlib.pyplot as plt
+plt.ion()
+tot_rewards = []
+
+def q_pred_m(y_true, y_pred):
+    return K.mean(K.mean(y_pred, axis=-1))
+
+def q_pred_d_m(y_true, y_pred):
+    return K.mean(K.mean( K.abs(y_pred-y_true) , axis=-1))
+
+def mean_max_tq(y_true, y_pred):
+    #print('in metric')
+    #print('y_true', y_true)
+    #print('y_pred', y_pred)
+    #print(K.mean(K.max(y_pred, axis=-1))) 
+    return K.mean(K.max(y_true, axis=-1))
+
+def mean_max_q(y_true, y_pred):
+    #print('in metric')
+    #print('y_true', y_true)
+    #print('y_pred', y_pred)
+    #print(K.mean(K.max(y_pred, axis=-1))) 
     return K.mean(K.max(y_pred, axis=-1))
 
 """Main DQN agent."""
@@ -77,6 +96,7 @@ class DQNAgent:
         self.preprocessor=preprocessor
         self.gamma=gamma
         
+        self.niter = 0
 
 
     def compile(self, optimizer, loss_func, metrics=[]):
@@ -98,7 +118,9 @@ class DQNAgent:
         """
         self.optimizer = optimizer 
         self.loss_func = loss_func 
-        metrics += [mean_q]
+        metrics += [mean_max_q, mean_max_tq]
+        #metrics += [q_pred_m, mean_max_q]
+        #metrics += [q_pred_d_m]
         
         # create target network with random optimizer
         config = {
@@ -120,17 +142,19 @@ class DQNAgent:
         self.max_grad = 1.0 
         def masked_error(args):
             y_true, y_pred, mask = args
-            loss = loss_func(y_true, y_pred, self.max_grad)
+            #loss = loss_func(y_true, y_pred, self.max_grad)
+            loss = loss_func(y_pred, y_true, self.max_grad)
             loss *= mask  # apply element-wise mask
+            #print loss
             return K.sum(loss, axis=-1)
 
-        q_pred = self.model.output
-        q_true = Input(name='q_true', shape=(self.model.output_shape[1],))
+        y_pred = self.model.output
+        y_true = Input(name='y_true', shape=(self.model.output_shape[1],))
         mask = Input(name='mask', shape=(self.model.output_shape[1],))
         # since we using mask we need seperate layer
-        loss_out = Lambda(masked_error, output_shape=(1,), name='loss')([q_pred, q_true, mask])
+        loss_out = Lambda(masked_error, output_shape=(1,), name='loss')([y_pred, y_true, mask])
         
-        trainable_model = Model(input=[self.model.input] + [q_true, mask], output=[loss_out, q_pred])
+        trainable_model = Model(input=[self.model.input] + [y_true, mask], output=[loss_out, y_pred])
         prop_metrics = {trainable_model.output_names[1]: metrics}
 
         # TODO not sure why this is needed
@@ -140,7 +164,7 @@ class DQNAgent:
             ]
         trainable_model.compile(optimizer=optimizer, loss=losses, metrics=prop_metrics)
         self.trainable_model = trainable_model
-        self.writer=tf.summary.FileWriter("logs/bin")
+        #self.writer=tf.summary.FileWriter("logs/bin")
 
         #def get_activations(model, layer, X_batch):
         #    get_activations = K.function([model.layers[0].input, K.learning_phase()], [model.layers[layer].output,])
@@ -237,10 +261,13 @@ class DQNAgent:
         episode=0
         iterations=0
         observation=None
-        episode_reward=None
-        episode_iter=None
+        prev_observation=0
+        episode_reward=0#None
+        episode_iter=0#None
+        episode_metric=0
         episode_no=0
         self.step=0 
+        self.prestep = 0
         self.nA=env.action_space.n
         action_rep=4
 
@@ -251,18 +278,20 @@ class DQNAgent:
           if observation is None:
           #Initiate training.(warmup phase to fill up the replay memory)
             print("Warmup start")
-            episode_reward=0
-            episode_iter=0
             observation = deepcopy(env.reset())
             #observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
             #observation = self.preprocessor.process_state_for_network(observation)
-            for _ in xrange(self.num_burn_in):
+            for i_ in xrange(self.num_burn_in):
 
               action = self.select_action(observation, train=True, warmup_phase=True)
               observation1, reward, terminal, info = env.step(action)
+              env.render()
               observation = deepcopy(observation1)
+              #observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
+              #TODO why?
               observation = self.preprocessor.process_state_for_memory(observation)
-              reward = self.preprocessor.process_reward(reward)
+              prev_observation = deepcopy(observation1)
+              #reward = self.preprocessor.process_reward(reward)
               self.memory.append(observation,action,reward,terminal)
               if terminal:
                 observation=deepcopy(env.reset())
@@ -276,43 +305,73 @@ class DQNAgent:
           reward1=0
           #Take the same action four times to reduce reaction frequency.
           for _ in xrange(action_rep):
-            observation1, reward0, terminal, info = env.step(action)
-            env.render()
-            observation = deepcopy(observation1)
-            observation=self.preprocessor.process_state_for_memory(observation)
-            reward=self.preprocessor.process_reward(reward0)
-            reward1+=reward0
+             observation1, reward0, terminal, info = env.step(action)
+             env.render()
+             observation = deepcopy(observation1)
+             observation=self.preprocessor.process_state_for_memory(observation)
+             reward=self.preprocessor.process_reward(reward0)
+             reward1+=reward0
           #Add the sample to replay memory.
           self.memory.append(self.observation,action,reward1,terminal)
 
           #Do backward pass parameter update.
-          metrics=self.backward()
-          print "The metrics are:", metrics
+          metric = self.backward()
+          #print "The metrics are:", metric
+          episode_metric += metric
+          episode_reward+=reward1
           episode_iter+=1
           self.step+=1
-          episode_reward+=reward1
-          #Reset environment if terminal.
+          
           if terminal:
-            print("Iteration no.-->%d/%d||Episode no.-->%d")%(self.step,num_iterations,episode_no)
-            print("Episode reward-->%d")%(episode_reward)
-            episode_no+=1
-            #Logging episode metrics.
-            save_scalar(episode_no, 'Episode_reward',episode_reward, self.writer)
-            save_scalar(episode_no, 'Episode_length',episode_iter, self.writer)
-            episode_iter,episode_reward=0,0
-            observation=env.reset()
-            observation = self.preprocessor.process_state_for_memory(observation)
+            action = self.forward(observation)
+            observation = deepcopy(observation1)
+            observation=self.preprocessor.process_state_for_memory(observation,prev_observation)
+            prev_observation=deepcopy(observation1)
+            #reward=self.preprocessor.process_reward(reward)
+            #Add the sample to replay memory.
+            self.memory.append(observation,action,0,False)
+
+            #Do backward pass parameter update.
+            metric = self.backward()
+            episode_metric += metric
+            episode_reward+=0
+            episode_iter+=1
+            self.step+=1
+            
+
+
+
           #End large episodes abruptly.
           if episode_iter>max_episode_length:
             terminal=True
+          #Reset environment if terminal.
+          if terminal:
+            print("Iteration no.-->%d/%d, %d")%(self.step,num_iterations,self.step-self.prestep)
+            self.prestep = self.step
+            print("Episode reward-->%d")%(episode_reward)
+            print("Episode metric-->",episode_metric/episode_iter)
+            episode_no+=1
+            #Logging episode metrics.
+            #save_scalar(episode_no, 'Episode_reward',episode_reward, self.writer)
+            #save_scalar(episode_no, 'Episode_length',episode_iter, self.writer)
+            tot_rewards.append(episode_reward)
+            plt.clf()
+            plt.plot(tot_rewards)
+            plt.pause(0.01)
+            episode_iter,episode_reward,episode_metric=0,0,0
+            observation=env.reset()
+            observation = self.preprocessor.process_state_for_memory(observation)
+
+
+          #End large episodes abruptly.
 
           #Write metrics in tensorflow filewriter.
           """ Loss, mean_q_values, episode_reward, episode_iter
           """
-          loss_s=metrics[0]
-          mean_q_s=metrics[1]
-          save_scalar(self.step, 'Loss', loss_s, self.writer)
-          save_scalar(self.step, 'Mean_Q', mean_q_s, self.writer)
+          loss_s=metric[0]
+          mean_q_s=metric[1]
+          #save_scalar(self.step, 'Loss', loss_s, self.writer)
+          #save_scalar(self.step, 'Mean_Q', mean_q_s, self.writer)
     
             
 
@@ -324,6 +383,11 @@ class DQNAgent:
       state=self.memory.get_recent_observation(observation)
       state=self.preprocessor.process_state_for_network(state)
       action=self.select_action(state=state, train=True, warmup_phase=False)
+      if self.niter == 100-1:
+        import matplotlib.pyplot as plt
+        plt.matshow(state[0,:,:,0])
+        plt.show()
+        debug()
       return action
 
 
@@ -362,6 +426,10 @@ class DQNAgent:
         dummy_targets = np.zeros((self.batch_size,))
         masks = np.zeros((self.batch_size, self.nA))
         discounted_reward_batch = self.gamma * q_batch
+        self.niter += 0
+        if self.niter == 100:
+            self.niter = 0
+            debug()
 
         #Set discounted reward to zero for terminal states.
         discounted_reward_batch *= terminal_batch
@@ -375,10 +443,10 @@ class DQNAgent:
 
         metrics = self.trainable_model.train_on_batch([state_batch, targets, masks], [dummy_targets, targets])
 
-        if self.step % self.target_update_freq == 0:
+        if self.target_update_freq>=1 and self.step % self.target_update_freq == 0:
           self.update_target_model_hard()
         metrics = [metric for idx, metric in enumerate(metrics) if idx not in (1, 2)]
-        return metrics
+        return np.array(metrics)
 
 
 
