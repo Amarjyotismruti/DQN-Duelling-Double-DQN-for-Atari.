@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Run Atari Environment with DQN."""
-import sys
-sys.path.append('/home/amar/Keras-1.2.2')
+# import sys
+# sys.path.append('/home/amar/Keras-1.2.2')
 import argparse
 import os
 import random
