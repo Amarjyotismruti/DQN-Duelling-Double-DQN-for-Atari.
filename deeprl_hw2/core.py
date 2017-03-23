@@ -2,7 +2,6 @@
 from collections import deque, namedtuple
 import random
 import numpy as np
-from ipdb import set_trace as debug
 import tensorflow
 
 Experience = namedtuple('Experience', 'state, action, reward, next_state, terminal')

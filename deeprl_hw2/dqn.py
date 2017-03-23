@@ -1,6 +1,5 @@
 # import sys
 # sys.path.append('/home/amar/Keras-1.2.2')
-from pdb import set_trace as debug
 from keras.models import model_from_config
 from objectives import huber_loss
 import keras.backend as K
@@ -412,7 +411,7 @@ class DQNAgent:
         self.niter += 0
         if self.niter == 100:
             self.niter = 0
-            debug()
+
 
         #Set discounted reward to zero for terminal states.
         discounted_reward_batch *= terminal_batch
