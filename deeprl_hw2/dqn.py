@@ -12,7 +12,7 @@ import numpy as np
 from utils import *
 
 import matplotlib.pyplot as plt
-plt.ion()
+#plt.ion()
 tot_rewards = []
 
 def q_pred_m(y_true, y_pred):
@@ -233,7 +233,7 @@ class DQNAgent:
         return selected_action
 
 
-    def fit(self, env, num_iterations, max_episode_length=None):
+    def fit(self, env, num_iterations, max_episode_length=None, rep_action=4, process_reward=1, num_actions=0):
         """Fit your model to the provided environment.
 
         Its a good idea to print out things like loss, average reward,
@@ -268,8 +268,14 @@ class DQNAgent:
         episode_no=0
         self.step=0 
         self.prestep = 0
-        self.nA=env.action_space.n
-        action_rep=1
+        if num_actions == 0:
+            self.nA=env.action_space.n
+        else:
+            if num_actions < env.action_space.n:
+                self.process_action = 1
+            self.nA=num_actions
+        action_rep=rep_action
+        self.process_reward=process_reward
 
 
         while self.step<num_iterations:
@@ -284,14 +290,15 @@ class DQNAgent:
             for i_ in xrange(self.num_burn_in):
 
               action = self.select_action(observation, train=True, warmup_phase=True)
-              observation1, reward, terminal, info = env.step(action)
+              observation1, reward, terminal, info = env.step(self.preprocessor.process_action(action,self.process_action))
               env.render()
               observation = deepcopy(observation1)
               #observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
               #TODO why?
               observation = self.preprocessor.process_state_for_memory(observation)
               prev_observation = deepcopy(observation1)
-              #reward = self.preprocessor.process_reward(reward)
+              if self.process_reward == 1:
+                reward = self.preprocessor.process_reward(reward)
               self.memory.append(observation,action,reward,terminal)
               if terminal:
                 observation=deepcopy(env.reset())
@@ -305,11 +312,12 @@ class DQNAgent:
           reward1=0
           #Take the same action four times to reduce reaction frequency.
           for _ in xrange(action_rep):
-             observation1, reward0, terminal, info = env.step(action)
+             observation1, reward0, terminal, info = env.step(self.preprocessor.process_action(action,self.process_action))
              env.render()
              observation = deepcopy(observation1)
              observation=self.preprocessor.process_state_for_memory(observation)
-             reward=self.preprocessor.process_reward(reward0)
+             if self.process_reward == 1:
+                reward=self.preprocessor.process_reward(reward0)
              reward1+=reward0
           #Add the sample to replay memory.
           self.memory.append(self.observation,action,reward1,terminal)
@@ -327,7 +335,8 @@ class DQNAgent:
             observation = deepcopy(observation1)
             observation=self.preprocessor.process_state_for_memory(observation,prev_observation)
             prev_observation=deepcopy(observation1)
-            #reward=self.preprocessor.process_reward(reward)
+            if self.process_reward == 1:
+                reward=self.preprocessor.process_reward(reward)
             #Add the sample to replay memory.
             self.memory.append(observation,action,0,False)
 
@@ -354,10 +363,6 @@ class DQNAgent:
             #Logging episode metrics.
             save_scalar(episode_no, 'Episode_reward',episode_reward, self.writer)
             save_scalar(episode_no, 'Episode_length',episode_iter, self.writer)
-            tot_rewards.append(episode_reward)
-            plt.clf()
-            plt.plot(tot_rewards)
-            plt.pause(0.01)
             episode_iter,episode_reward,episode_metric=0,0,0
             observation=env.reset()
             observation = self.preprocessor.process_state_for_memory(observation)

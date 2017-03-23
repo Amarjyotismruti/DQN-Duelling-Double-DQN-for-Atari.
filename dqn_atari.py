@@ -114,7 +114,7 @@ def main():  # noqa: D103
     #(SpaceInvaders-v0
     # Enduro-v0
     parser = argparse.ArgumentParser(description='Run DQN on Atari Breakout')
-    #parser.add_argument('--env', default='Enduro-v0', help='Atari env name')
+    parser.add_argument('--env', default='Enduro-v0', help='Atari env name')
     #parser.add_argument('--env', default='SpaceInvaders-v0', help='Atari env name')
     #parser.add_argument('--env', default='PendulumSai-v0', help='Atari env name')
     parser.add_argument(
@@ -142,7 +142,6 @@ def main():  # noqa: D103
     train_freq = 1
     batch_size = 4#32#16
     num_burn_in = 150*batch_size
-    num_actions = env.action_space.n
     state_size = (84,84,1)#env.observation_space.shape
     new_size = state_size
     max_size = 80000 #memory size
@@ -152,6 +151,10 @@ def main():  # noqa: D103
     beta_2 = 0.999
     epsilon = 1e-08
     decay = 0.0
+    
+    num_actions=3 #is less than env.action_space.nA then add 2 to action
+    rep_action=1 
+    process_reward=1 #reward clipping
 
     u_policy = UniformRandomPolicy( num_actions)
     ge_policy = GreedyEpsilonPolicy(epsilon)
@@ -182,7 +185,9 @@ def main():  # noqa: D103
     dqnA.compile(optimizer, h_loss)
     #callback1 = ProgbarLogger(count_mode='samples')
 
-    dqnA.fit(env, num_iterations=num_iter, max_episode_length=max_epi_iter)#, callbacks = [callback1])
+    dqnA.fit(env, num_iterations=num_iter, max_episode_length=max_epi_iter, 
+            num_actions=num_actions, 
+            rep_action=rep_action,process_reward=process_reward)#, callbacks = [callback1])
 
 
 if __name__ == '__main__':

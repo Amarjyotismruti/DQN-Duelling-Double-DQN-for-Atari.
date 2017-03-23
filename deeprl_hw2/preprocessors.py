@@ -139,6 +139,10 @@ class AtariPreprocessor(Preprocessor):
 
         return batch_state
 
+    def process_action(self, action, process_action):
+        if process_action == 0:
+            return action
+        return action+1
 
     def process_reward(self, reward):
         """Clip reward between -1 and 1."""
