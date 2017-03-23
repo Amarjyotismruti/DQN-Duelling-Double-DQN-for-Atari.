@@ -62,7 +62,7 @@ def create_model(window, input_shape, num_actions,
     model = Convolution2D(64, 4, 4, border_mode='same', activation='relu', name='image_conv2', subsample=[2,2])(model)
     model = BatchNormalization()(model)
     model = Convolution2D(64 , 3, 3, border_mode='same', activation='relu', name='image_conv3', subsample=[1,1])(model)
-    model = BatchNormalization()(model)p
+    model = BatchNormalization()(model)
     model = Flatten()(model)
     model = Dense(512, activation='relu')(model)
     model = Dense(num_actions)(model)
