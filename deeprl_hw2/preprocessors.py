@@ -2,7 +2,7 @@
 
 import numpy as np
 from PIL import Image
-from core import Preprocessor
+from deeprl_hw2.core import Preprocessor
 
 
 class HistoryPreprocessor(Preprocessor):

@@ -172,7 +172,7 @@ class RingBuffer(object):
     self.max_len=max_len
     self.start=0
     self.size=0
-    self.data=[None for i in xrange(max_len)]
+    self.data=[None for i in range(max_len)]
 
   def __len__(self):
     return self.size
@@ -283,7 +283,7 @@ class SequentialMemory(ReplayMemory):
     def get_recent_observation(self,recent_observation):
 
       obs=[recent_observation]
-      for idx in xrange(1, self.window_length):
+      for idx in range(1, self.window_length):
         obs.insert(0,self.current_observation[self.window_length-idx])
       return np.array(obs)
 
@@ -301,7 +301,7 @@ class SequentialMemory(ReplayMemory):
     def sample_batch_indexes(self, low, high, size):
 
       if high - low >= size:
-          r = xrange(low, high)
+          r = range(low, high)
           batch_indexes = random.sample(r, size)
       else:
           batch_indexes = np.random.randint(low, high - 1, size=size)
@@ -324,13 +324,13 @@ class SequentialMemory(ReplayMemory):
           idx+=self.window_length
 
         state=[]
-        for i in xrange(self.window_length):
+        for i in range(self.window_length):
           state.insert(0,self.observations[idx-i])
           if self.terminals[idx-i]:
             no_mix = 0
             break
         if no_mix == 1:
-          next_state=[self.observations[idx-i+1] for i in reversed(xrange(self.window_length))]
+          next_state=[self.observations[idx-i+1] for i in reversed(range(self.window_length))]
           action=self.actions[idx+1]
           # TODO what happens if the any state or next state is terminal inside a batch? I think we should sample again.(can we ignore it?)
           # TODO is the +1 valid? for reward and terminal state(corrected)
@@ -358,10 +358,10 @@ class SequentialMemory(ReplayMemory):
           idx+=self.window_length
 
         state=[]
-        for i in xrange(self.window_length):
+        for i in range(self.window_length):
           state.insert(0,self.observations[idx-i])
 
-        next_state=[self.observations[idx-i+1] for i in reversed(xrange(self.window_length))]
+        next_state=[self.observations[idx-i+1] for i in reversed(range(self.window_length))]
         action=self.actions[idx+1]
         # TODO what happens if the any state or next state is terminal inside a batch? I think we should sample again.(can we ignore it?)
         # TODO is the +1 valid? for reward and terminal state(corrected)

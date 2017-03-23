@@ -1,14 +1,14 @@
 # import sys
 # sys.path.append('/home/amar/Keras-1.2.2')
 from keras.models import model_from_config
-from objectives import huber_loss
+from deeprl_hw2.objectives import huber_loss
 import keras.backend as K
 import tensorflow as tf
 from keras.layers import Input, Lambda
 from keras.models import Model
 from copy import deepcopy
 import numpy as np
-from utils import *
+from deeprl_hw2.utils import *
 
 def q_pred_m(y_true, y_pred):
     return K.mean(K.mean(y_pred, axis=-1))
@@ -275,7 +275,7 @@ class DQNAgent:
             observation = deepcopy(env.reset())
             #observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
             #observation = self.preprocessor.process_state_for_network(observation)
-            for i_ in xrange(self.num_burn_in):
+            for i in range(self.num_burn_in):
 
               action = self.select_action(observation, train=True, warmup_phase=True)
               observation1, reward, terminal, info = env.step(action)
@@ -285,7 +285,7 @@ class DQNAgent:
               #TODO why?
               observation = self.preprocessor.process_state_for_memory(observation)
               prev_observation = deepcopy(observation1)
-              #reward = self.preprocessor.process_reward(reward)
+              reward = self.preprocessor.process_reward(reward)
               self.memory.append(observation,action,reward,terminal)
               if terminal:
                 observation=deepcopy(env.reset())
@@ -301,7 +301,7 @@ class DQNAgent:
           action=self.forward(observation)
           reward1=0
           #Take the same action four times to reduce reaction frequency.
-          for _ in xrange(action_rep):
+          for _ in range(action_rep):
              observation1, reward0, terminal, info = env.step(action)
              env.render()
              observation = deepcopy(observation1)
