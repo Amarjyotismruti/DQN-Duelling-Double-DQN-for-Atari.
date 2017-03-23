@@ -1,6 +1,5 @@
 """Suggested Preprocessors."""
 
-from pdb import set_trace as debug
 import numpy as np
 from PIL import Image
 from core import Preprocessor

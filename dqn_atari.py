@@ -23,8 +23,6 @@ from deeprl_hw2.policy import UniformRandomPolicy, GreedyPolicy, GreedyEpsilonPo
 from deeprl_hw2.preprocessors import AtariPreprocessor, HistoryPreprocessor
 from deeprl_hw2.core import *#ReplayMemory
 
-from pdb import set_trace as debug
-
 def create_model(window, input_shape, num_actions,
                  model_name='q_network'):  # noqa: D103
     """Create the Q-network model.
