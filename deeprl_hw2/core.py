@@ -396,6 +396,6 @@ if __name__=="__main__":
   memory.append(4,5,6,False)
   memory.append(7,8,9,False)
   memory.append(10,11,12,False)
-  print memory.get_recent_observation(11)
+
 
   
