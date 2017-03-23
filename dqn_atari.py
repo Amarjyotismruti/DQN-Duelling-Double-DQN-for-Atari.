@@ -57,14 +57,14 @@ def create_model(window, input_shape, num_actions,
     print input_shape
     state_input = Input(shape=(input_shape[0],input_shape[1],input_shape[2]*window))
     model = BatchNormalization()(state_input)
-    model = Convolution2D(16, 4, 4, border_mode='same', activation='relu', name='image_conv1', subsample=[2,2])(model)
+    model = Convolution2D(32, 8, 8, border_mode='same', activation='relu', name='image_conv1', subsample=[4,4])(model)
     model = BatchNormalization()(model)
-    model = Convolution2D(32, 2, 2, border_mode='same', activation='relu', name='image_conv2', subsample=[2,2])(model)
+    model = Convolution2D(64, 4, 4, border_mode='same', activation='relu', name='image_conv2', subsample=[2,2])(model)
     model = BatchNormalization()(model)
-    model = Convolution2D(32, 2, 2, border_mode='same', activation='relu', name='image_conv3', subsample=[2,2])(model)
+    model = Convolution2D(64 , 3, 3, border_mode='same', activation='relu', name='image_conv3', subsample=[1,1])(model)
     model = BatchNormalization()(model)
-    model = Convolution2D(32, 2, 2, border_mode='same', activation='relu', name='image_conv4', subsample=[2,2])(model)
     model = Flatten()(model)
+    model = Dense(512, activation='relu')(model)
     model = Dense(num_actions)(model)
 
     model_f = Model(input=state_input, output=model)
@@ -132,23 +132,22 @@ def main():  # noqa: D103
     # then you can run your fit method.
 
     env = gym.make(args.env)
-    num_iter = 1000000
-    #max_epi_iter = 370
-    max_epi_iter = 50
+    num_iter = 2000000
+    max_epi_iter = 150
     
-    epsilon = 0.05
+    epsilon = 0.1
     window = 4
     gamma = 0.99
-    target_update_freq = 1500#0.0001
+    target_update_freq = 10000
     train_freq = 1
-    batch_size = 8#32#16
-    num_burn_in = 50*batch_size
-    num_actions = env.action_space.n
-    state_size = (84,84,1)#env.observation_space.shape
+    batch_size = 32
+    num_burn_in = 50000
+    num_actions = 3 #env.action_space.n
+    state_size = (84,84,1)
     new_size = state_size
-    max_size = 80000 #memory size
+    max_size = 1000000
     
-    lr = 0.005
+    lr = 0.00025
     beta_1 = 0.9
     beta_2 = 0.999
     epsilon = 1e-08
@@ -165,7 +164,7 @@ def main():  # noqa: D103
     preprocessor = AtariPreprocessor(new_size)
     memory = SequentialMemory(max_size=max_size, window_length=window)
 
-    model = create_model(window, state_size, num_actions)
+    model = create_model(window, state_size, num_actions)   
     print model.summary()
     dqnA = DQNAgent(q_network=model,
              preprocessor=preprocessor,
@@ -183,7 +182,7 @@ def main():  # noqa: D103
     dqnA.compile(optimizer, h_loss)
     #callback1 = ProgbarLogger(count_mode='samples')
 
-    dqnA.fit(env, num_iterations=num_iter, max_episode_length=max_epi_iter)#, callbacks = [callback1])
+    dqnA.fit(env, num_iterations=num_iter, max_episode_length=max_epi_iter)
 
 
 if __name__ == '__main__':

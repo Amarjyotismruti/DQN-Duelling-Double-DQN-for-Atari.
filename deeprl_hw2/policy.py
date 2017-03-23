@@ -62,7 +62,7 @@ class UniformRandomPolicy(Policy):
         int:
           Action index in range [0, num_actions)
         """
-        return np.random.randint(0, self.num_actions)
+        return np.random.randint(0, self.num_actions)+1
 
     def get_config(self):  # noqa: D102
         return {'num_actions': self.num_actions}
@@ -75,7 +75,7 @@ class GreedyPolicy(Policy):
     """
 
     def select_action(self, q_values, **kwargs):  # noqa: D102
-        return np.argmax(q_values)
+        return np.argmax(q_values)+1
 
 
 class GreedyEpsilonPolicy(Policy):
@@ -112,7 +112,7 @@ class GreedyEpsilonPolicy(Policy):
             selected_action = np.random.randint(q_values.size)
         else:
             selected_action = np.argmax(q_values)
-        return selected_action
+        return selected_action+1
 
 
 
