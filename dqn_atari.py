@@ -115,8 +115,8 @@ def main():  # noqa: D103
     #(SpaceInvaders-v0
     # Enduro-v0
     parser = argparse.ArgumentParser(description='Run DQN on Atari Breakout')
-    parser.add_argument('--env', default='Enduro-v0', help='Atari env name')
-    #parser.add_argument('--env', default='SpaceInvaders-v0', help='Atari env name')
+    #parser.add_argument('--env', default='Enduro-v0', help='Atari env name')
+    parser.add_argument('--env', default='SpaceInvaders-v0', help='Atari env name')
     #parser.add_argument('--env', default='PendulumSai-v0', help='Atari env name')
     parser.add_argument(
         '-o', '--output', default='atari-v0', help='Directory to save data to')
@@ -139,7 +139,7 @@ def main():  # noqa: D103
     epsilon = 0.05
     window = 4
     gamma = 0.99
-    target_update_freq = 3000#0.0001
+    target_update_freq = 10000#0.0001
     train_freq = 1
     batch_size = 4#32#16
     num_burn_in = 150*batch_size
@@ -147,7 +147,7 @@ def main():  # noqa: D103
     new_size = state_size
     max_size = 10000 #memory size
     
-    lr = 0.00001
+    lr = 0.0001
     beta_1 = 0.9
     beta_2 = 0.999
     epsilon = 1e-08

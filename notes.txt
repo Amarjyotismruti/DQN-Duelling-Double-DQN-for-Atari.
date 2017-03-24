@@ -1,0 +1,17 @@
+space
+bad memory appending
+
+lr = 0.0001
+tr_fre = 10000
+n_max = 1010
+b_size = 4
+repact = 4
+p_reward = 0
+n_burn = 4*150
+m_size = 10000
+
+~250 @ 1.25k
+
+events.out.tfevents.1490333496.sai
+
+

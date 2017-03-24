@@ -279,83 +279,51 @@ class DQNAgent:
 
 
         while self.step<num_iterations:
-          #TODO respect max_episode length
-
           if observation is None:
-          #Initiate training.(warmup phase to fill up the replay memory)
+            #Initiate training.(warmup phase to fill up the replay memory)
             print("Warmup start")
-            observation = deepcopy(env.reset())
+            self.observation = deepcopy(env.reset())
             for i_ in xrange(self.num_burn_in):
-              self.observation=self.preprocessor.process_state_for_memory(deepcopy(observation))
               action = self.select_action(self.observation, train=True, warmup_phase=True)
               reward1=0
               for _ in xrange(action_rep):
                  observation, reward0, terminal, info = env.step(self.preprocessor.process_action(action,self.process_action))
-                 #print "wtr re", reward0
-                 #if reward0>0:
-                 #   print "-------------"
                  if self.process_reward == 1:
                     reward0=self.preprocessor.process_reward(reward0)
                  reward1+=reward0
                  if terminal:
                     break
-              #print "wtrr re", reward1
               env.render()
+              self.observation = deepcopy(observation)
+              self.observation = self.preprocessor.process_state_for_memory(self.observation)
               self.memory.append(self.observation,action,reward1,terminal)
               if terminal:
                 self.observation=deepcopy(env.reset())
                 self.observation = self.preprocessor.process_state_for_memory(self.observation)
             print("Warmup end.")
-                # TODO doesnt make sense to break here
-                #break
 
           action=self.forward(self.observation)
           reward1=0
           #Take the same action four times to reduce reaction frequency.
           for _ in xrange(action_rep):
              observation, reward0, terminal, info = env.step(self.preprocessor.process_action(action,self.process_action))
-             #print "tr re", reward0
-             #if reward0>0:
-             #    print "-------------"
              if self.process_reward == 1:
                 reward0=self.preprocessor.process_reward(reward0)
              reward1+=reward0
              if terminal:
                  break
-          #print "trr re", reward1
-          #time.sleep(.3)
           env.render()
           #Add the sample to replay memory.
-          self.observation=deepcopy(self.observation)
+          self.observation=deepcopy(observation)
           self.observation=self.preprocessor.process_state_for_memory(self.observation)
-          self.memory.append(self.observation,action,reward1,terminal)
-          self.observation=self.preprocessor.process_state_for_memory(deepcopy(observation)) 
+          self.memory.append(observation,action,reward1,terminal)
 
           #Do backward pass parameter update.
           metric = self.backward()
-          #print "The metrics are:", metric
           episode_metric += metric
           episode_reward+=reward1
           episode_iter+=1
           self.step+=1
-          
-          #if terminal:
-          #  action = self.forward(observation)
-          #  observation = deepcopy(observation1)
-          #  observation=self.preprocessor.process_state_for_memory(observation,prev_observation)
-          #  prev_observation=deepcopy(observation1)
-          #  if self.process_reward == 1:
-          #      reward=self.preprocessor.process_reward(reward)
-          #  #Add the sample to replay memory.
-          #  self.memory.append(observation,action,0,False)
-
-          #  #Do backward pass parameter update.
-          #  metric = self.backward()
-          #  episode_metric += metric
-          #  episode_reward+=0
-          #  episode_iter+=1
-          #  self.step+=1
-            
 
 
 
