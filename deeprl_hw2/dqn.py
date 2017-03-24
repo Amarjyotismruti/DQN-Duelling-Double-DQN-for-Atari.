@@ -1,5 +1,5 @@
-# import sys
-# sys.path.append('/home/amar/Keras-1.2.2')
+import sys
+sys.path.append('/home/amar/Keras-1.2.2')
 from keras.models import model_from_config
 from deeprl_hw2.objectives import huber_loss
 import keras.backend as K
@@ -262,7 +262,7 @@ class DQNAgent:
         episode_metric=0
         episode_no=0
         self.step=0 
-        self.nA=env.action_space.n
+        self.nA=3#env.action_space.n
         action_rep=4
 
 
@@ -278,7 +278,7 @@ class DQNAgent:
             for i in range(self.num_burn_in):
 
               action = self.select_action(observation, train=True, warmup_phase=True)
-              observation1, reward, terminal, info = env.step(action)
+              observation1, reward, terminal, info = env.step(action+1)
               env.render()
               observation = deepcopy(observation1)
               #observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
@@ -302,7 +302,7 @@ class DQNAgent:
           reward1=0
           #Take the same action four times to reduce reaction frequency.
           for _ in range(action_rep):
-             observation1, reward0, terminal, info = env.step(action)
+             observation1, reward0, terminal, info = env.step(action+1)
              env.render()
              observation = deepcopy(observation1)
              observation=self.preprocessor.process_state_for_memory(observation)
