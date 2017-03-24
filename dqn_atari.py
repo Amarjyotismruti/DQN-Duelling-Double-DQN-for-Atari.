@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Run Atari Environment with DQN."""
 import sys
-#sys.path.append('/home/amar/Keras-1.2.2')
+sys.path.append('/home/amar/Keras-1.2.2')
 import argparse
 import os
 import random
@@ -115,7 +115,7 @@ def main():  # noqa: D103
     #(SpaceInvaders-v0
     # Enduro-v0
     parser = argparse.ArgumentParser(description='Run DQN on Atari Breakout')
-    parser.add_argument('--env', default='Enduro-v0', help='Atari env name')
+    parser.add_argument('--env', default='SpaceInvaders-v0', help='Atari env name')
     #parser.add_argument('--env', default='SpaceInvaders-v0', help='Atari env name')
     #parser.add_argument('--env', default='PendulumSai-v0', help='Atari env name')
     parser.add_argument(
@@ -133,21 +133,20 @@ def main():  # noqa: D103
 
     env = gym.make(args.env)
     num_iter = 1000000
-    #max_epi_iter = 370
-    max_epi_iter = 1010
+    max_epi_iter = 200
     
     epsilon = 0.05
     window = 4
     gamma = 0.99
-    target_update_freq = 3000#0.0001
+    target_update_freq = 3000
     train_freq = 1
-    batch_size = 4#32#16
+    batch_size = 8
     num_burn_in = 150*batch_size
     state_size = (84,84,1)#env.observation_space.shape
     new_size = state_size
     max_size = 10000 #memory size
     
-    lr = 0.00001
+    lr = 0.0006
     beta_1 = 0.9
     beta_2 = 0.999
     epsilon = 1e-08
