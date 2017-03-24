@@ -1,5 +1,5 @@
 import sys
-sys.path.append('/home/amar/Keras-1.2.2')
+# sys.path.append('/home/amar/Keras-1.2.2')
 from keras.models import model_from_config
 from deeprl_hw2.objectives import huber_loss
 import keras.backend as K
@@ -17,17 +17,11 @@ def q_pred_d_m(y_true, y_pred):
     return K.mean(K.mean( K.abs(y_pred-y_true) , axis=-1))
 
 def mean_max_tq(y_true, y_pred):
-    #print('in metric')
-    #print('y_true', y_true)
-    #print('y_pred', y_pred)
-    #print(K.mean(K.max(y_pred, axis=-1))) 
+
     return K.mean(K.max(y_true, axis=-1))
 
 def mean_max_q(y_true, y_pred):
-    #print('in metric')
-    #print('y_true', y_true)
-    #print('y_pred', y_pred)
-    #print(K.mean(K.max(y_pred, axis=-1))) 
+
     return K.mean(K.max(y_pred, axis=-1))
 
 """Main DQN agent."""
@@ -90,8 +84,7 @@ class DQNAgent:
         self.batch_size = batch_size
         self.preprocessor=preprocessor
         self.gamma=gamma
-        
-        self.niter = 0
+        self.process_reward=0
 
 
     def compile(self, optimizer, loss_func, metrics=[]):
@@ -273,23 +266,25 @@ class DQNAgent:
           #Initiate training.(warmup phase to fill up the replay memory)
             print("Warmup start")
             observation = deepcopy(env.reset())
-            #observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
-            #observation = self.preprocessor.process_state_for_network(observation)
-            for i in range(self.num_burn_in):
 
-              action = self.select_action(observation, train=True, warmup_phase=True)
-              observation1, reward, terminal, info = env.step(action+1)
-              env.render()
-              observation = deepcopy(observation1)
-              #observation = self.preprocessor.process_state_for_memory(observation,prev_observation)
-              #TODO why?
-              observation = self.preprocessor.process_state_for_memory(observation)
-              prev_observation = deepcopy(observation1)
-              reward = self.preprocessor.process_reward(reward)
-              self.memory.append(observation,action,reward,terminal)
+            for _ in xrange(self.num_burn_in):
+              observation1=deepcopy(observation)
+              action = self.select_action(observation1, train=True, warmup_phase=True)
+              reward1=0
+              for _ in xrange(action_rep):
+                 observation, reward0, terminal, info = env.step(action+1)
+
+                 if self.process_reward == 1:
+                    reward0=self.preprocessor.process_reward(reward0)
+                 reward1+=reward0
+                 if terminal:
+                    break
+              
+              self.observation=self.preprocessor.process_state_for_memory(observation)
+              self.memory.append(self.observation,action,reward1,terminal)
+
               if terminal:
                 observation=deepcopy(env.reset())
-                observation = self.preprocessor.process_state_for_memory(observation)
             print("Warmup end.")
                 # TODO doesnt make sense to break here
                 #break
@@ -297,41 +292,28 @@ class DQNAgent:
           if self.step%200000:
             self.save_weights("weights_enduro.hdf5")
 
-          self.observation=deepcopy(observation)
-          action=self.forward(observation)
+          action=self.forward(self.observation)
           reward1=0
           #Take the same action four times to reduce reaction frequency.
-          for _ in range(action_rep):
-             observation1, reward0, terminal, info = env.step(action+1)
-             env.render()
-             observation = deepcopy(observation1)
-             observation=self.preprocessor.process_state_for_memory(observation)
-             reward=self.preprocessor.process_reward(reward0)
+          for _ in xrange(action_rep):
+             observation, reward0, terminal, info = env.step(action+1)
+             if self.process_reward == 1:
+                reward0=self.preprocessor.process_reward(reward0)
              reward1+=reward0
+             if terminal:
+                 break
           #Add the sample to replay memory.
+          observation1=deepcopy(observation)
+          self.observation=self.preprocessor.process_state_for_memory(observation1)
           self.memory.append(self.observation,action,reward1,terminal)
 
           #Do backward pass parameter update.
           metric = self.backward()
-          #print "The metrics are:", metric
-          episode_metric += metric
           episode_reward+=reward1
           episode_iter+=1
           self.step+=1
-          
-          # if terminal:
-          #   action = self.forward(observation)
-          #   observation = deepcopy(observation1)
-          #   observation=self.preprocessor.process_state_for_memory(observation)
-          #   reward=self.preprocessor.process_reward(reward)
-          #   #Add the sample to replay memory.
-          #   self.memory.append(observation,action,0,False)
 
-          # metric = self.backward()
-          # episode_metric += metric
-          # episode_reward+=0
-          # episode_iter+=1
-          # self.step+=1
+
             
 
 
@@ -340,8 +322,8 @@ class DQNAgent:
             terminal=True
           #Reset environment if terminal.
           if terminal:
-            print("Iteration no.-->%d/%d")%(self.step,num_iterations)
-            print("Episode reward-->%d")%(episode_reward)
+            print("Iteration no.-->",self.step,"/",num_iterations)
+            print("Episode reward-->",episode_reward)
             episode_no+=1
             #Logging episode metrics.
             save_scalar(episode_no, 'Episode_reward',episode_reward, self.writer)
@@ -408,9 +390,7 @@ class DQNAgent:
         dummy_targets = np.zeros((self.batch_size,))
         masks = np.zeros((self.batch_size, self.nA))
         discounted_reward_batch = self.gamma * q_batch
-        self.niter += 0
-        if self.niter == 100:
-            self.niter = 0
+ 
 
 
         #Set discounted reward to zero for terminal states.

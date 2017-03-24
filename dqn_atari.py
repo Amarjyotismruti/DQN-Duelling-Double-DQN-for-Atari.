@@ -112,7 +112,7 @@ def main():  # noqa: D103
     # Enduro-v0
     parser = argparse.ArgumentParser(description='Run DQN on Atari Breakout')
 
-    parser.add_argument('--env', default='Enduro-v0', help='Atari env name')
+    parser.add_argument('--env', default='SpaceInvaders-v0', help='Atari env name')
     #parser.add_argument('--env', default='SpaceInvaders-v0', help='Atari env name')
     #parser.add_argument('--env', default='PendulumSai-v0', help='Atari env name')
     parser.add_argument(
@@ -130,7 +130,7 @@ def main():  # noqa: D103
 
     env = gym.make(args.env)
     num_iter = 2000000
-    max_epi_iter = 150
+    max_epi_iter = 1000
     
     epsilon = 0.1
     window = 4
