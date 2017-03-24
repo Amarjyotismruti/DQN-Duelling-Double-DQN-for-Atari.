@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Run Atari Environment with DQN."""
 import sys
-#sys.path.append('/home/amar/Keras-1.2.2')
+sys.path.append('/home/amar/Keras-1.2.2')
 import argparse
 import os
 import random
@@ -133,7 +133,6 @@ def main():  # noqa: D103
 
     env = gym.make(args.env)
     num_iter = 1000000
-    #max_epi_iter = 370
     max_epi_iter = 1010
     
     epsilon = 0.05
@@ -141,7 +140,7 @@ def main():  # noqa: D103
     gamma = 0.99
     target_update_freq = 10000#0.0001
     train_freq = 1
-    batch_size = 4#32#16
+    batch_size = 4
     num_burn_in = 150*batch_size
     state_size = (84,84,1)#env.observation_space.shape
     new_size = state_size

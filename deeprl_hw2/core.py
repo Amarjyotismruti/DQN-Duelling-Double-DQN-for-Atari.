@@ -312,7 +312,6 @@ class SequentialMemory(ReplayMemory):
     def sample(self, batch_size):
       """Sample batches from the replay memory for training"""
       
-      sam = 0
       #Compile the experience as a batch
       batch=[]
       
@@ -333,14 +332,10 @@ class SequentialMemory(ReplayMemory):
         if no_mix == 1:
           next_state=[self.observations[idx-i+1] for i in reversed(xrange(self.window_length))]
           action=self.actions[idx+1]
-          # TODO what happens if the any state or next state is terminal inside a batch? I think we should sample again.(can we ignore it?)
-          # TODO is the +1 valid? for reward and terminal state(corrected)
           terminal=self.terminals[idx+1]
           reward=self.rewards[idx+1]
 
           batch.append(Experience(state, action, reward, next_state, terminal))
-        #else:
-        #    debug()
 
 
       return batch
