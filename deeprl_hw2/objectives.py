@@ -31,8 +31,8 @@ def huber_loss(y_true, y_pred, max_grad=1.):
     linear_loss=max_grad*(a-0.5*max_grad)
     squared_loss=0.5*tf.square(a)
 
-    #return tf.where(condition,squared_loss,linear_loss)
-    return tf.select(condition,squared_loss,linear_loss)
+    return tf.where(condition,squared_loss,linear_loss)
+    #return tf.select(condition,squared_loss,linear_loss)
 
     
 

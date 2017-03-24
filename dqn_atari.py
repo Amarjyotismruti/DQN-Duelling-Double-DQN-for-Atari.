@@ -63,8 +63,9 @@ def create_model(window, input_shape, num_actions,
     model = BatchNormalization()(model)
     model = Convolution2D(32, 2, 2, border_mode='same', activation='relu', name='image_conv3', subsample=[2,2])(model)
     model = BatchNormalization()(model)
-    model = Convolution2D(32, 2, 2, border_mode='same', activation='relu', name='image_conv4', subsample=[2,2])(model)
+    model = Convolution2D(16, 2, 2, border_mode='same', activation='relu', name='image_conv4', subsample=[2,2])(model)
     model = Flatten()(model)
+    model = Dense(5*num_actions, activation='relu')(model)
     model = Dense(num_actions)(model)
 
     model_f = Model(input=state_input, output=model)
@@ -133,28 +134,28 @@ def main():  # noqa: D103
     env = gym.make(args.env)
     num_iter = 1000000
     #max_epi_iter = 370
-    max_epi_iter = 450
+    max_epi_iter = 1010
     
     epsilon = 0.05
     window = 4
     gamma = 0.99
-    target_update_freq = 1500#0.0001
+    target_update_freq = 3000#0.0001
     train_freq = 1
     batch_size = 4#32#16
     num_burn_in = 150*batch_size
     state_size = (84,84,1)#env.observation_space.shape
     new_size = state_size
-    max_size = 80000 #memory size
+    max_size = 10000 #memory size
     
-    lr = 0.0001
+    lr = 0.00001
     beta_1 = 0.9
     beta_2 = 0.999
     epsilon = 1e-08
     decay = 0.0
     
     num_actions=3 #is less than env.action_space.nA then add 2 to action
-    rep_action=1 
-    process_reward=1 #reward clipping
+    rep_action=4 
+    process_reward=0 #reward clipping
 
     u_policy = UniformRandomPolicy( num_actions)
     ge_policy = GreedyEpsilonPolicy(epsilon)
