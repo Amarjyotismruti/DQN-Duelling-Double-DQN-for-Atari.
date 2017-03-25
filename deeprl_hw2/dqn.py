@@ -72,7 +72,7 @@ class DQNAgent:
                  target_update_freq,
                  num_burn_in,
                  train_freq,
-                 batch_size):
+                 batch_size, model_name):
         self.u_policy = policy['u_policy']
         self.g_policy = policy['g_policy']
         self.ge_policy = policy['ge_policy']
@@ -85,7 +85,7 @@ class DQNAgent:
         self.preprocessor=preprocessor
         self.gamma=gamma
         self.process_reward=0
-
+        self.model_name=model_name
 
     def compile(self, optimizer, loss_func, metrics=[]):
         """Setup all of the TF graph variables/ops.
@@ -152,7 +152,8 @@ class DQNAgent:
             ]
         trainable_model.compile(optimizer=optimizer, loss=losses, metrics=prop_metrics)
         self.trainable_model = trainable_model
-        self.writer=tf.summary.FileWriter("logs/bin")
+        self.writer=tf.summary.FileWriter("logs/"+self.model_name)
+        #self.load_weights('parameters/linear-weights-0.h5')
 
         #def get_activations(model, layer, X_batch):
         #    get_activations = K.function([model.layers[0].input, K.learning_phase()], [model.layers[layer].output,])
@@ -289,8 +290,8 @@ class DQNAgent:
                 # TODO doesnt make sense to break here
                 #break
           #Save model parameters.
-          if self.step%200000:
-            self.save_weights("weights_enduro.hdf5")
+          if self.step%100000==0:
+            self.save_weights("parameters/"+self.model_name+"-weights-"+str(self.step)+".h5")
 
           action=self.forward(self.observation)
           reward1=0
@@ -303,6 +304,7 @@ class DQNAgent:
              if terminal:
                  break
           #Add the sample to replay memory.
+          #env.render()
           observation1=deepcopy(observation)
           self.observation=self.preprocessor.process_state_for_memory(observation1)
           self.memory.append(self.observation,action,reward1,terminal)

@@ -127,15 +127,15 @@ def main():  # noqa: D103
     # here is where you should start up a session,
     # create your DQN agent, create your model, etc.
     # then you can run your fit method.
-
+    model_name='DQN'
     env = gym.make(args.env)
     num_iter = 2000000
     max_epi_iter = 1000
     
-    epsilon = 0.1
+    epsilon = 0.4
     window = 4
     gamma = 0.99
-    target_update_freq = 10000
+    target_update_freq = 5000
     train_freq = 1
     batch_size = 32
     num_burn_in = 5000
@@ -144,10 +144,10 @@ def main():  # noqa: D103
     new_size = state_size
     max_size = 1000000
     
-    lr = 0.00025
+    lr = 0.00020
     beta_1 = 0.9
     beta_2 = 0.999
-    epsilon = 1e-08
+    epsilon2 = 1e-08
     decay = 0.0
 
     u_policy = UniformRandomPolicy( num_actions)
@@ -171,11 +171,11 @@ def main():  # noqa: D103
              target_update_freq=target_update_freq,
              num_burn_in=num_burn_in,
              train_freq=train_freq,
-             batch_size=batch_size)
+             batch_size=batch_size, model_name=model_name)
     #testing
     #selected_action = dqnA.select_action( np.random.rand(1,210,160,12), train=1, warmup_phase=0)
     h_loss = huber_loss
-    optimizer = Adam(lr=lr, beta_1=beta_1, beta_2=beta_2, epsilon=epsilon, decay=decay)
+    optimizer = Adam(lr=lr, beta_1=beta_1, beta_2=beta_2, epsilon=epsilon2, decay=decay)
     dqnA.compile(optimizer, h_loss)
     #callback1 = ProgbarLogger(count_mode='samples')
 
