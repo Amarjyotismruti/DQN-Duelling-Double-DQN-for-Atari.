@@ -27,7 +27,7 @@ def mean_max_q(y_true, y_pred):
     return K.mean(K.max(y_pred, axis=-1))
 
 """Main DQN agent."""
-class DQNAgent:
+class DQNAgent_Naive:
     """Class implementing DQN.
 
     This is a basic outline of the functions/parameters you will need
@@ -80,7 +80,6 @@ class DQNAgent:
         self.ge_policy = policy['ge_policy']
         self.model = q_network
         self.num_burn_in = num_burn_in
-        self.memory = memory
         self.target_update_freq = target_update_freq
         self.train_freq = train_freq 
         self.batch_size = batch_size
@@ -109,32 +108,13 @@ class DQNAgent:
         self.optimizer = optimizer 
         self.loss_func = loss_func 
         metrics += [mean_max_q, mean_max_tq]
-        #metrics += [q_pred_m, mean_max_q]
-        #metrics += [q_pred_d_m]
         
-        # create target network with random optimizer
-        config = {
-            'class_name': self.model.__class__.__name__,
-            'config': self.model.get_config(),
-        }
-        self.target = model_from_config(config, custom_objects={})#custom_objects)
-        self.target.set_weights(self.model.get_weights())
-        self.target.compile(optimizer='adam', loss='mse')
         self.model.compile(optimizer='adam', loss='mse')
-        
-
-        #Update the target network using soft updates.
-        if self.target_update_freq < 1.:
-          updates = get_soft_target_model_updates(self.target, self.model, self.target_update_freq)
-          optimizer = UpdatesOptimizer(optimizer, updates)
-
         self.max_grad = 1.0 
         def masked_error(args):
             y_true, y_pred, mask = args
-            #loss = loss_func(y_true, y_pred, self.max_grad)
             loss = loss_func(y_pred, y_true, self.max_grad)
             loss *= mask  # apply element-wise mask
-            #print loss
             return K.sum(loss, axis=-1)
 
         y_pred = self.model.output
@@ -146,7 +126,6 @@ class DQNAgent:
         trainable_model = Model(input=[self.model.input] + [y_true, mask], output=[loss_out, y_pred])
         prop_metrics = {trainable_model.output_names[1]: metrics}
 
-        # TODO not sure why this is needed
         losses = [
                 lambda y_true, y_pred: y_pred,  # loss is computed in Lambda layer
                 lambda y_true, y_pred: K.zeros_like(y_pred),  # we only include this for the metrics
@@ -154,14 +133,6 @@ class DQNAgent:
         trainable_model.compile(optimizer=optimizer, loss=losses, metrics=prop_metrics)
         self.trainable_model = trainable_model
         self.writer=tf.summary.FileWriter("logs/bin")
-
-        #def get_activations(model, layer, X_batch):
-        #    get_activations = K.function([model.layers[0].input, K.learning_phase()], [model.layers[layer].output,])
-        #    activations = get_activations([X_batch,0])
-        #    return activations
-
-
-
 
 
     def calc_q_values(self, state):
@@ -174,7 +145,6 @@ class DQNAgent:
         Q-values for the state(s)
         """
         #pass
-        #TODO process state
         q_vals = self.model.predict_on_batch(state)
         return q_vals
 
@@ -199,10 +169,6 @@ class DQNAgent:
         --------
         selected action
         """
-        #
-        #states wont be in batch 
-        #train + warmup_phase
-        #
         #assuming single state, not batch
         q_vals = []
         if train:
@@ -219,7 +185,7 @@ class DQNAgent:
             q_vals = self.calc_q_values(state)[0]
             selected_action = self.g_policy.select_action(q_vals)
 
-        return selected_action
+        return selected_action, q_vals
 
 
     def fit(self, env, num_iterations, max_episode_length=None, rep_action=4, process_reward=1, num_actions=0):
@@ -256,6 +222,8 @@ class DQNAgent:
         episode_metric=0
         episode_no=0
         self.step=0 
+        self.state=[]
+        self.window_length=4
         if num_actions == 0:
             self.nA=3 #env.action_space.n
         else:
@@ -268,28 +236,12 @@ class DQNAgent:
 
         while self.step<num_iterations:
           if observation is None:
-            #Initiate training.(warmup phase to fill up the replay memory)
-            print("Warmup start")
-            self.observation = deepcopy(env.reset())
-            for i_ in xrange(self.num_burn_in):
-              action = self.select_action(self.observation, train=True, warmup_phase=True)
-              reward1=0
-              for _ in xrange(action_rep):
-                 observation, reward0, terminal, info = env.step(self.preprocessor.process_action(action,self.process_action))
-                 if self.process_reward == 1:
-                    reward0=self.preprocessor.process_reward(reward0)
-                 reward1+=reward0
-                 if terminal:
-                    break
-              env.render()
-              self.observation=self.preprocessor.process_state_for_memory(observation)
-              self.memory.append(self.observation,action,reward1,terminal)
-
-              if terminal:
-                observation=deepcopy(env.reset())
-            print("Warmup end.")
-
-          action=self.forward(self.observation)
+            print("new start")
+            observation = deepcopy(env.reset())
+            self.observation=self.preprocessor.process_state_for_memory(observation)
+            self.get_recent_observation(self.observation)
+          
+          action, q_vals=self.forward()
           reward1=0
           #Take the same action four times to reduce reaction frequency.
           for _ in xrange(action_rep):
@@ -300,19 +252,24 @@ class DQNAgent:
              if terminal:
                  break
           env.render()
-          #Add the sample to replay memory.
+          
           observation1=deepcopy(observation)
-          self.observation=self.preprocessor.process_state_for_memory(observation1)
-          self.memory.append(self.observation,action,reward1,terminal)
-
+          observation=self.preprocessor.process_state_for_memory(observation1)
+          self.curr_state = deepcopy(self.state)
+          self.get_recent_observation(observation)#puts next state in self.state
+          
+          self.action = action
+          self.reward = reward1
+          self.terminal = terminal
+          self.curr_q_vals = q_vals
+          
           #Do backward pass parameter update.
           metric = self.backward()
+          
           episode_metric += metric
           episode_reward+=reward1
           episode_iter+=1
           self.step+=1
-
-
 
           #End large episodes abruptly.
           if episode_iter>max_episode_length:
@@ -327,8 +284,8 @@ class DQNAgent:
             save_scalar(episode_no, 'Episode_length',episode_iter, self.writer)
             save_scalar(self.step, 'Action', action, self.writer)
             episode_iter,episode_reward,episode_metric=0,0,0
-            observation=env.reset()
-            self.observation = self.preprocessor.process_state_for_memory(observation)
+            observation = None
+            self.state = []
 
 
           #End large episodes abruptly.
@@ -345,76 +302,60 @@ class DQNAgent:
     
             
 
+    def get_recent_observation(self,observation):
+        
+        if len(self.state) == 0:
+            for i in xrange(self.window_length):
+                self.state.insert(0,observation)
+        else:
+            #pass
+            self.state.append(observation)
+            self.state = self.state[1:]
+            
 
 
+    def forward(self):
 
-    def forward(self, observation):
-
-      state=self.memory.get_recent_observation(observation)
-      state=self.preprocessor.process_state_for_network(state)
-      action=self.select_action(state=state, train=True, warmup_phase=False)
-      return action
+      state=self.preprocessor.process_state_for_network(self.state)
+      action, q_vals=self.select_action(state=state, train=True, warmup_phase=False)
+      return action, q_vals
 
 
     def backward(self):
-
       if self.step%self.train_freq==0:
-
-        experiences = self.memory.sample(self.batch_size)
-
-        #Extract the parameters out of experience data structure.
-        state_batch = []
-        reward_batch = []
-        action_batch = []
-        terminal_batch = []
-        next_state_batch = []
-        for exp in experiences:
-            state_batch.append(exp.state)
-            next_state_batch.append(exp.next_state)
-            reward_batch.append(exp.reward)
-            action_batch.append(exp.action)
-            terminal_batch.append(0. if exp.terminal else 1.)
-
-        state_batch = self.preprocessor.process_batch(state_batch)
-        next_state_batch = self.preprocessor.process_batch(next_state_batch)
-        terminal_batch=np.array(terminal_batch)
-        reward_batch=np.array(reward_batch)
-
-        #compute target q_values
-        # TODO add rewards
-        target_values = self.target.predict_on_batch(next_state_batch)    
-        q_batch = np.max(target_values, axis=1).flatten()
+        #next state
+        n_state=self.preprocessor.process_state_for_network(self.state)
+        target_values = self.calc_q_values(n_state)
+        
+        next_q = np.max(target_values)
+        q = np.max(self.curr_q_vals)
 
         #Used for setting up target batch for training.
         targets = np.zeros((self.batch_size, self.nA))
         dummy_targets = np.zeros((self.batch_size,))
         masks = np.zeros((self.batch_size, self.nA))
-        discounted_reward_batch = self.gamma * q_batch
-
+        discounted_reward = self.gamma * next_q
 
         #Set discounted reward to zero for terminal states.
-        discounted_reward_batch *= terminal_batch
-        target_qvalue=reward_batch + discounted_reward_batch
-
+        ter = 1
+        if self.terminal:
+            ter = 0
+        discounted_reward *= ter
+        target_qvalue = self.reward + discounted_reward
         #Set up the targets.
-        for idx, (target, mask, R, action) in enumerate(zip(targets, masks, target_qvalue, action_batch)):
-          target[action] = R 
-          dummy_targets[idx] = R
-          mask[action] = 1. 
+        R = target_qvalue
+        targets[0,self.action] = R 
+        dummy_targets[0] = R
+        masks[0,self.action] = 1. 
 
+        state_batch = self.preprocessor.process_batch([self.curr_state])
         metrics = self.trainable_model.train_on_batch([state_batch, targets, masks], [dummy_targets, targets])
 
-        if self.target_update_freq>=1 and self.step % self.target_update_freq == 0:
-          print "Hard updating"
-          self.update_target_model_hard()
         metrics = [metric for idx, metric in enumerate(metrics) if idx not in (1, 2)]
         return np.array(metrics)
 
 
 
-    def update_target_model_hard(self):
-
-      self.target.set_weights(self.model.get_weights())
 
 
 
