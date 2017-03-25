@@ -268,11 +268,11 @@ class DQNAgent:
             print("Warmup start")
             observation = deepcopy(env.reset())
 
-            for _ in xrange(self.num_burn_in):
+            for _ in range(self.num_burn_in):
               observation1=deepcopy(observation)
               action = self.select_action(observation1, train=True, warmup_phase=True)
               reward1=0
-              for _ in xrange(action_rep):
+              for _ in range(action_rep):
                  observation, reward0, terminal, info = env.step(action+1)
 
                  if self.process_reward == 1:
@@ -296,7 +296,7 @@ class DQNAgent:
           action=self.forward(self.observation)
           reward1=0
           #Take the same action four times to reduce reaction frequency.
-          for _ in xrange(action_rep):
+          for _ in range(action_rep):
              observation, reward0, terminal, info = env.step(action+1)
              if self.process_reward == 1:
                 reward0=self.preprocessor.process_reward(reward0)
