@@ -110,7 +110,7 @@ class GreedyEpsilonPolicy(Policy):
           The action index chosen.
         """
         #Decay the policy.
-        if self.count%5000==0:
+        if self.count%7000==0:
             self.epsilon*=0.9
         if self.epsilon<0.1:
             self.epsilon=0.1

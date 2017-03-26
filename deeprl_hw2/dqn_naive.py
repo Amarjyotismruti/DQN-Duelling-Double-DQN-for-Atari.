@@ -1,14 +1,18 @@
 import sys
-# sys.path.append('/home/amar/Keras-1.2.2')
+from ipdb import set_trace as debug
 from keras.models import model_from_config
-from deeprl_hw2.objectives import huber_loss
+from objectives import huber_loss
 import keras.backend as K
 import tensorflow as tf
 from keras.layers import Input, Lambda
 from keras.models import Model
 from copy import deepcopy
 import numpy as np
-from deeprl_hw2.utils import *
+from utils import *
+import time
+import matplotlib.pyplot as plt
+#plt.ion()
+tot_rewards = []
 
 def q_pred_m(y_true, y_pred):
     return K.mean(K.mean(y_pred, axis=-1))
@@ -17,15 +21,13 @@ def q_pred_d_m(y_true, y_pred):
     return K.mean(K.mean( K.abs(y_pred-y_true) , axis=-1))
 
 def mean_max_tq(y_true, y_pred):
-
     return K.mean(K.max(y_true, axis=-1))
 
 def mean_max_q(y_true, y_pred):
-
     return K.mean(K.max(y_pred, axis=-1))
 
 """Main DQN agent."""
-class DQNAgent:
+class DQNAgent_Naive:
     """Class implementing DQN.
 
     This is a basic outline of the functions/parameters you will need
@@ -78,7 +80,6 @@ class DQNAgent:
         self.ge_policy = policy['ge_policy']
         self.model = q_network
         self.num_burn_in = num_burn_in
-        self.memory = memory
         self.target_update_freq = target_update_freq
         self.train_freq = train_freq 
         self.batch_size = batch_size
@@ -86,6 +87,7 @@ class DQNAgent:
         self.gamma=gamma
         self.process_reward=0
         self.model_name=model_name
+
 
     def compile(self, optimizer, loss_func, metrics=[]):
         """Setup all of the TF graph variables/ops.
@@ -107,33 +109,13 @@ class DQNAgent:
         self.optimizer = optimizer 
         self.loss_func = loss_func 
         metrics += [mean_max_q, mean_max_tq]
-        #metrics += [q_pred_m, mean_max_q]
-        #metrics += [q_pred_d_m]
         
-        # create target network with random optimizer
-        config = {
-            'class_name': self.model.__class__.__name__,
-            'config': self.model.get_config(),
-        }
-        self.target = model_from_config(config, custom_objects={})#custom_objects)
-        self.target.set_weights(self.model.get_weights())
-        self.target.compile(optimizer='adam', loss='mse')
         self.model.compile(optimizer='adam', loss='mse')
-        
-
-        #Update the target network using soft updates.
-        if self.target_update_freq < 1.:
-          updates = get_soft_target_model_updates(self.target, self.model, self.target_update_freq)
-          optimizer = UpdatesOptimizer(optimizer, updates)
-
-        #TODO: target model weights update sperately while updating network
         self.max_grad = 1.0 
         def masked_error(args):
             y_true, y_pred, mask = args
-            #loss = loss_func(y_true, y_pred, self.max_grad)
             loss = loss_func(y_pred, y_true, self.max_grad)
             loss *= mask  # apply element-wise mask
-            #print loss
             return K.sum(loss, axis=-1)
 
         y_pred = self.model.output
@@ -142,10 +124,9 @@ class DQNAgent:
         # since we using mask we need seperate layer
         loss_out = Lambda(masked_error, output_shape=(1,), name='loss')([y_pred, y_true, mask])
         
-        trainable_model = Model(input=[self.model.input] + [y_true, mask], output=[loss_out , y_pred])
+        trainable_model = Model(input=[self.model.input] + [y_true, mask], output=[loss_out, y_pred])
         prop_metrics = {trainable_model.output_names[1]: metrics}
 
-        # TODO not sure why this is needed
         losses = [
                 lambda y_true, y_pred: y_pred,  # loss is computed in Lambda layer
                 lambda y_true, y_pred: K.zeros_like(y_pred),  # we only include this for the metrics
@@ -153,15 +134,6 @@ class DQNAgent:
         trainable_model.compile(optimizer=optimizer, loss=losses, metrics=prop_metrics)
         self.trainable_model = trainable_model
         self.writer=tf.summary.FileWriter("logs/"+self.model_name)
-        #self.load_weights('parameters/linear-weights-0.h5')
-
-        #def get_activations(model, layer, X_batch):
-        #    get_activations = K.function([model.layers[0].input, K.learning_phase()], [model.layers[layer].output,])
-        #    activations = get_activations([X_batch,0])
-        #    return activations
-
-
-
 
 
     def calc_q_values(self, state):
@@ -174,7 +146,6 @@ class DQNAgent:
         Q-values for the state(s)
         """
         #pass
-        #TODO process state
         q_vals = self.model.predict_on_batch(state)
         return q_vals
 
@@ -199,10 +170,6 @@ class DQNAgent:
         --------
         selected action
         """
-        #
-        #states wont be in batch 
-        #train + warmup_phase
-        #
         #assuming single state, not batch
         q_vals = []
         if train:
@@ -219,10 +186,10 @@ class DQNAgent:
             q_vals = self.calc_q_values(state)[0]
             selected_action = self.g_policy.select_action(q_vals)
 
-        return selected_action
+        return selected_action, q_vals
 
 
-    def fit(self, env, num_iterations, max_episode_length=None):
+    def fit(self, env, num_iterations, max_episode_length=None, rep_action=4, process_reward=1, num_actions=0):
         """Fit your model to the provided environment.
 
         Its a good idea to print out things like loss, average reward,
@@ -251,90 +218,80 @@ class DQNAgent:
         iterations=0
         observation=None
         prev_observation=0
-        episode_reward=0
-        episode_iter=0
+        episode_reward=0#None
+        episode_iter=0#None
         episode_metric=0
         episode_no=0
         self.step=0 
-        self.nA=3#env.action_space.n
-        action_rep=4
+        self.state=[]
+        self.window_length=4
+        if num_actions == 0:
+            self.nA=3 #env.action_space.n
+        else:
+            if num_actions < env.action_space.n:
+                self.process_action = 1
+            self.nA=num_actions
+        action_rep=rep_action
+        self.process_reward=0#process_reward
 
 
         while self.step<num_iterations:
-          #TODO respect max_episode length
-
-          if observation is None:
-          #Initiate training.(warmup phase to fill up the replay memory)
-            print("Warmup start")
-            observation = deepcopy(env.reset())
-
-            for _ in range(self.num_burn_in):
-              observation1=deepcopy(observation)
-              action = self.select_action(observation1, train=True, warmup_phase=True)
-              reward1=0
-              for _ in range(action_rep):
-                 observation, reward0, terminal, info = env.step(action+1)
-
-                 if self.process_reward == 1:
-                    reward0=self.preprocessor.process_reward(reward0)
-                 reward1+=reward0
-                 if terminal:
-                    break
-              
-              self.observation=self.preprocessor.process_state_for_memory(observation)
-              self.memory.append(self.observation,action,reward1,terminal)
-
-              if terminal:
-                observation=deepcopy(env.reset())
-            print("Warmup end.")
-                # TODO doesnt make sense to break here
-                #break
-          #Save model parameters.
           if self.step%10000==0:
             self.save_weights("parameters/"+self.model_name+"-weights-"+str(self.step)+".h5")
-
-          action=self.forward(self.observation)
+          if observation is None:
+            print("new start")
+            observation = deepcopy(env.reset())
+            self.observation=self.preprocessor.process_state_for_memory(observation)
+            self.get_recent_observation(self.observation)
+          
+          action, q_vals=self.forward()
           reward1=0
           #Take the same action four times to reduce reaction frequency.
-          for _ in range(action_rep):
+          for _ in xrange(action_rep):
              observation, reward0, terminal, info = env.step(action+1)
              if self.process_reward == 1:
                 reward0=self.preprocessor.process_reward(reward0)
              reward1+=reward0
              if terminal:
                  break
-          #Add the sample to replay memory.
           env.render()
+          
           observation1=deepcopy(observation)
-          self.observation=self.preprocessor.process_state_for_memory(observation1)
-          self.memory.append(self.observation,action,reward1,terminal)
-
+          observation=self.preprocessor.process_state_for_memory(observation1)
+          self.curr_state = deepcopy(self.state)
+          self.get_recent_observation(observation)#puts next state in self.state
+          
+          self.action = action
+          self.reward = reward1
+          self.terminal = terminal
+          self.curr_q_vals = q_vals
+          
           #Do backward pass parameter update.
           metric = self.backward()
+          
+          episode_metric += metric
           episode_reward+=reward1
           episode_iter+=1
           self.step+=1
-
-
-            
-
 
           #End large episodes abruptly.
           if episode_iter>max_episode_length:
             terminal=True
           #Reset environment if terminal.
           if terminal:
-            print("Iteration no.-->",self.step,"/",num_iterations)
-            print("Episode reward-->",episode_reward)
+            print("Iteration no.-->",self.step,'/',num_iterations)
+            print("Episode reward-->", episode_reward)
             episode_no+=1
             #Logging episode metrics.
             save_scalar(episode_no, 'Episode_reward',episode_reward, self.writer)
             save_scalar(episode_no, 'Episode_length',episode_iter, self.writer)
+            save_scalar(self.step, 'Action', action, self.writer)
             episode_iter,episode_reward,episode_metric=0,0,0
-            observation=env.reset()
-            observation = self.preprocessor.process_state_for_memory(observation)
+            observation = None
+            self.state = []
 
 
+          #End large episodes abruptly.
 
           #Write metrics in tensorflow filewriter.
           """ Loss, mean_q_values, episode_reward, episode_iter
@@ -343,80 +300,65 @@ class DQNAgent:
           mean_q_s=metric[1]
           save_scalar(self.step, 'Loss', loss_s, self.writer)
           save_scalar(self.step, 'Mean_Q', mean_q_s, self.writer)
+          save_scalar(self.step, 'Action', action, self.writer)
+          save_scalar(self.step, 'Iteration_reward', reward1, self.writer)
     
             
 
+    def get_recent_observation(self,observation):
+        
+        if len(self.state) == 0:
+            for i in xrange(self.window_length):
+                self.state.insert(0,observation)
+        else:
+            #pass
+            self.state.append(observation)
+            self.state = self.state[1:]
+            
 
 
+    def forward(self):
 
-    def forward(self, observation):
-
-      state=self.memory.get_recent_observation(observation)
-      state=self.preprocessor.process_state_for_network(state)
-      action=self.select_action(state=state, train=True, warmup_phase=False)
-      return action
+      state=self.preprocessor.process_state_for_network(self.state)
+      action, q_vals=self.select_action(state=state, train=True, warmup_phase=False)
+      return action, q_vals
 
 
     def backward(self):
-      #self.memory.append(self.recent_observation, self.recent_action, reward, terminal)
-
       if self.step%self.train_freq==0:
-
-        experiences = self.memory.sample(self.batch_size)
-
-        #Extract the parameters out of experience data structure.
-        state_batch = []
-        reward_batch = []
-        action_batch = []
-        terminal_batch = []
-        next_state_batch = []
-        for exp in experiences:
-            state_batch.append(exp.state)
-            next_state_batch.append(exp.next_state)
-            reward_batch.append(exp.reward)
-            action_batch.append(exp.action)
-            terminal_batch.append(0. if exp.terminal else 1.)
-
-        state_batch = self.preprocessor.process_batch(state_batch)
-        next_state_batch = self.preprocessor.process_batch(next_state_batch)
-        terminal_batch=np.array(terminal_batch)
-        reward_batch=np.array(reward_batch)
-
-        #compute target q_values
-        # TODO add rewards
-        target_values = self.target.predict_on_batch(next_state_batch)    
-        q_batch = np.max(target_values, axis=1).flatten()
+        #next state
+        n_state=self.preprocessor.process_state_for_network(self.state)
+        target_values = self.calc_q_values(n_state)
+        
+        next_q = np.max(target_values)
+        q = np.max(self.curr_q_vals)
 
         #Used for setting up target batch for training.
         targets = np.zeros((self.batch_size, self.nA))
         dummy_targets = np.zeros((self.batch_size,))
         masks = np.zeros((self.batch_size, self.nA))
-        discounted_reward_batch = self.gamma * q_batch
- 
-
+        discounted_reward = self.gamma * next_q
 
         #Set discounted reward to zero for terminal states.
-        discounted_reward_batch *= terminal_batch
-        target_qvalue=reward_batch + discounted_reward_batch
-
+        ter = 1
+        if self.terminal:
+            ter = 0
+        discounted_reward *= ter
+        target_qvalue = self.reward + discounted_reward
         #Set up the targets.
-        for idx, (target, mask, R, action) in enumerate(zip(targets, masks, target_qvalue, action_batch)):
-          target[action] = R 
-          dummy_targets[idx] = R
-          mask[action] = 1. 
+        R = target_qvalue
+        targets[0,self.action] = R 
+        dummy_targets[0] = R
+        masks[0,self.action] = 1. 
 
+        state_batch = self.preprocessor.process_batch([self.curr_state])
         metrics = self.trainable_model.train_on_batch([state_batch, targets, masks], [dummy_targets, targets])
 
-        if self.target_update_freq>=1 and self.step % self.target_update_freq == 0:
-          self.update_target_model_hard()
         metrics = [metric for idx, metric in enumerate(metrics) if idx not in (1, 2)]
         return np.array(metrics)
 
 
 
-    def update_target_model_hard(self):
-
-      self.target.set_weights(self.model.get_weights())
 
 
 
@@ -441,7 +383,7 @@ class DQNAgent:
         
 
 
-    def save_weights(self, filepath ,overwrite=True):
+    def save_weights(self, filepath, overwrite=True):
       """Save network parameters periodically"""
       self.model.save_weights(filepath, overwrite=overwrite)
 
