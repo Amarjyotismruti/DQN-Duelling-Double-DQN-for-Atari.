@@ -72,7 +72,7 @@ class DQNAgent:
                  target_update_freq,
                  num_burn_in,
                  train_freq,
-                 batch_size, model_name):
+                 batch_size, model_name, double_dqn=False):
         self.u_policy = policy['u_policy']
         self.g_policy = policy['g_policy']
         self.ge_policy = policy['ge_policy']
@@ -86,6 +86,7 @@ class DQNAgent:
         self.gamma=gamma
         self.process_reward=0
         self.model_name=model_name
+        self.double_dqn=double_dqn
 
     def compile(self, optimizer, loss_func, metrics=[]):
         """Setup all of the TF graph variables/ops.
@@ -384,8 +385,14 @@ class DQNAgent:
 
         #compute target q_values
         # TODO add rewards
-        target_values = self.target.predict_on_batch(next_state_batch)    
-        q_batch = np.max(target_values, axis=1).flatten()
+        if self.double_dqn:
+            q_values = self.model.predict_on_batch(next_state_batch)
+            actions = np.argmax(q_values, axis=1)
+            target_values = self.target.predict_on_batch(next_state_batch)
+            q_batch = target_values[range(self.batch_size), actions]
+        else:
+            target_values = self.target.predict_on_batch(next_state_batch)    
+            q_batch = np.max(target_values, axis=1).flatten()
 
         #Used for setting up target batch for training.
         targets = np.zeros((self.batch_size, self.nA))
